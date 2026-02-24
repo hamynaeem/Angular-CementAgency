@@ -13,12 +13,13 @@ import { MyToastService } from '../../../services/toaster.server';
   styleUrls: ['./credit-list.component.scss'],
 })
 export class CreditlistComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
-  @ViewChild('cmbRoute') cmbRoute : ComboBoxComponent;
+  @ViewChild('RptTable') RptTable: any;
+  @ViewChild('cmbRoute') cmbRoute! : ComboBoxComponent;
 
   public Filter = {
     City: '',
-    Balance: '10'
+    Balance: '10',
+    Cnic: ''
   };
   setting = {
     Checkbox: false,
@@ -40,6 +41,10 @@ export class CreditlistComponent implements OnInit {
         fldName: 'City',
       },
       {
+        label: 'Cnic',
+        fldName: 'Cnic',
+      },
+      {
         label: 'Phone No',
         fldName: 'PhoneNo1',
       },
@@ -47,7 +52,7 @@ export class CreditlistComponent implements OnInit {
         label: 'Amount',
         fldName: 'Balance',
         sum: true,
-        valueFormatter: (d) => {
+        valueFormatter: (d: any) => {
           return formatNumber(d['Balance']);
         },
       },
@@ -60,7 +65,7 @@ export class CreditlistComponent implements OnInit {
   };
 
   public Cities:any=[];
-  public data: object[];
+  public data: object[] = [];
 
   constructor(
     private http: HttpBase,
@@ -85,7 +90,20 @@ export class CreditlistComponent implements OnInit {
     if (this.Filter.City) filter += ` and City='${this.Filter.City}'`
     if (this.Filter.Balance) filter += ' and Balance >=' + this.Filter.Balance
 
-    this.http.getData('qrycustomers?flds=CustomerID,CustomerName, Address, City, Balance as Balance&filter=' + filter).then((r: any) => {
+    // request the actual view columns and alias them to the field names used by the table
+    this.http.getData('qrycustomers?flds=CustomerID,CustomerName, Address, City, CNICNo as Cnic, PhoneNo as PhoneNo1, Balance as Balance&filter=' + filter).then((r: any) => {
+      // normalize incoming data to ensure `Cnic` and `PhoneNo1` are populated
+      if (Array.isArray(r)) {
+        r = r.map((it: any) => {
+          // try several possible property names that may come from different DB views
+          it.Cnic = it.Cnic || it.CNICNo || it.CNIC || it.CnicNo || it.CNIC_No || '';
+          it.PhoneNo1 = it.PhoneNo1 || it.PhoneNo || it.Phone || it.PhoneNo_1 || '';
+          // trim whitespace
+          if (typeof it.Cnic === 'string') it.Cnic = it.Cnic.trim();
+          if (typeof it.PhoneNo1 === 'string') it.PhoneNo1 = it.PhoneNo1.trim();
+          return it;
+        });
+      }
       this.data = r;
     });
   }

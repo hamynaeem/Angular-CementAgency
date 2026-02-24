@@ -19,9 +19,9 @@ export class ProfitByBillComponent implements OnInit {
     SalesmanID: '',
     RouteID: '',
   };
-  Salesman = this.cachedData.Salesman$;
-  public Routes = this.cachedData.routes$
-  public data: object[];
+  public Salesman: any;
+  public Routes: any;
+  public data: object[] = [];
 
 
   setting = {
@@ -85,6 +85,8 @@ export class ProfitByBillComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.Salesman = this.cachedData.Salesman$;
+    this.Routes = this.cachedData.routes$;
     this.FilterData();
   }
   PrintReport() {
@@ -113,7 +115,7 @@ export class ProfitByBillComponent implements OnInit {
       this.data = r;
     });
   }
-  Clicked(e) {
+  Clicked(e: any) {
     console.log(e);
 
   }

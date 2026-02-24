@@ -11,7 +11,8 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./purchase-ledger.component.scss'],
 })
 export class PurchaseLedgerComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable: any;
+  private accountNameById: { [key: string]: string } = {};
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -30,6 +31,10 @@ export class PurchaseLedgerComponent implements OnInit {
       {
         label: 'Bill No',
         fldName: 'BookingID',
+      },
+      {
+        label: 'Customer Name',
+        fldName: 'CustomerName',
       },
       {
         label: 'Product Name',
@@ -58,7 +63,7 @@ export class PurchaseLedgerComponent implements OnInit {
   nWhat = '1';
   Items: any = [{ ItemID: '1', ItemName: 'Test Item' }];
 
-  public data: object[];
+  public data: object[] = [];
   public Accounts: any;
   public selectedCustomer: any = {};
   constructor(
@@ -71,6 +76,13 @@ export class PurchaseLedgerComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.cachedData.Accounts$.subscribe((accounts: any[]) => {
+      const map: { [key: string]: string } = {};
+      (accounts || []).forEach((a: any) => {
+        map[String(a.CustomerID)] = a.CustomerName;
+      });
+      this.accountNameById = map;
+    });
     this.LoadItems();
     this.FilterData();
   }
@@ -89,7 +101,7 @@ export class PurchaseLedgerComponent implements OnInit {
 
     this.router.navigateByUrl('/print/print-html');
   }
-  CustomerSelected(e) {
+  CustomerSelected(e: any) {
     console.log(e);
     this.selectedCustomer = e;
   }
@@ -103,34 +115,45 @@ export class PurchaseLedgerComponent implements OnInit {
       "'";
 
     if (this.Filter.CustomerID)
-      filter += ' and CustomerID=' + this.Filter.CustomerID;
+      filter +=
+        ' and BookingID in (select InvoiceID from pinvoices where SupplierID=' +
+        this.Filter.CustomerID +
+        ')';
 
     if (this.Filter.ItemID)
       if (this.nWhat == '1') filter += ' and ProductID=' + this.Filter.ItemID;
-      else filter += ' and UnitID=' + this.Filter.ItemID;
+      else
+        filter +=
+          ' and ProductID in (select ProductID from products where UnitID=' +
+          this.Filter.ItemID +
+          ')';
 
     let flds =
-      'Date,BookingID, ProductName, Qty, PPrice, Amount';
+      'Date,BookingID,(select SupplierID from pinvoices where InvoiceID=BookingID limit 1) as SupplierID,(select CustomerName from qrycustomers where CustomerID=(select SupplierID from pinvoices where InvoiceID=BookingID limit 1)) as CustomerName,ProductName,Qty,PPrice,Amount';
 
     this.http
       .getData(
         `qrypurchasereport?orderby=Date,BookingID&flds=${flds}&filter=${filter}`
       )
       .then((r: any) => {
-        this.data = r;
+        this.data = (r || []).map((row: any) => ({
+          ...row,
+          CustomerName:
+            this.accountNameById[String(row.SupplierID)] || row.CustomerName,
+        }));
       });
   }
-  Clicked(e) {}
+  Clicked(_e: any) {}
 
-  ItemSelected(e) {}
-  ItemChange(e) {
+  ItemSelected(_e: any) {}
+  ItemChange(_e: any) {
     this.LoadItems();
   }
   async LoadItems() {
     this.Items = [];
     if (this.nWhat == '1') {
       this.cachedData.Products$.subscribe((r: any) => {
-        r.forEach((m) => {
+        r.forEach((m: any) => {
           this.Items.push({
             ItemID: m.ProductID,
             ItemName: m.ProductName,
@@ -141,7 +164,7 @@ export class PurchaseLedgerComponent implements OnInit {
       });
     } else if (this.nWhat == '2') {
       this.http.getData('units').then((r: any) => {
-        r.forEach((m) => {
+        r.forEach((m: any) => {
           this.Items.push({
             ItemID: m.ID,
             ItemName: m.UnitName,

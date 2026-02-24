@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import swal from 'sweetalert';
 import {
@@ -14,7 +14,7 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./cash-book.component.scss'],
 })
 export class CashBookComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable!: ElementRef;
   public data: any = [];
 
   public Filter = {

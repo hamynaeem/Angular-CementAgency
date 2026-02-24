@@ -21,8 +21,20 @@ export class HttpBase {
     let params = new HttpParams();
     if (typeof param === 'string') {
       params = new HttpParams().set('filter', param);
+    } else {
+      params = this.toHttpParams(param);
     }
-    params = this.toHttpParams(param);
+
+    // ensure BusinessID (bid) is always sent when available to avoid server SQL errors
+    try {
+      const keys = params.keys();
+      if (this.getBusinessID() !== undefined && this.getBusinessID() !== null && keys.indexOf('bid') === -1) {
+        params = params.append('bid', this.getBusinessID());
+      }
+    } catch (e) {
+      // ignore if params.keys() is not available for some reason
+      params = params.append('bid', this.getBusinessID());
+    }
 
     // console.log(param);
 
@@ -44,13 +56,23 @@ export class HttpBase {
     let params = new HttpParams();
     if (typeof param === 'string') {
       params = new HttpParams().set('filter', param);
+    } else {
+      params = this.toHttpParams(param);
     }
-    params = this.toHttpParams(param);
+    // include business id for task endpoints as well
+    try {
+      const keys = params.keys();
+      if (this.getBusinessID() !== undefined && this.getBusinessID() !== null && keys.indexOf('bid') === -1) {
+        params = params.append('bid', this.getBusinessID());
+      }
+    } catch (e) {
+      params = params.append('bid', this.getBusinessID());
+    }
     // console.log(param);
 
     return new Promise((resolve, reject) => {
       this.http
-        .get('apis/index.php/tasks/' + ApiEndPoint, {
+        .get('apis/index.php/' + ApiEndPoint, {
           headers: this.jwt(),
           params,
         })
@@ -101,7 +123,7 @@ export class HttpBase {
   delTask(table: string, id: string) {
     return new Promise((resolve, reject) => {
       this.http
-        .get('apis/index.php/tasks/' + table + '/' + id, { headers: this.jwt() })
+        .get('apis/index.php/' + table + '/' + id, { headers: this.jwt() })
         .subscribe({
           next: (res) => {
             resolve(res);
@@ -174,17 +196,46 @@ export class HttpBase {
   }
 
   postTask(url: string, data: any) {
+    const bid = this.getBusinessID();
     let params = new HttpParams();
-    params = this.toHttpParams({ bid: this.getBusinessID() });
+    if (bid !== undefined && bid !== null && bid !== '') {
+      params = params.append('bid', bid.toString());
+    }
+
+    let taskUrl = (url || '').trim().replace(/^\/+/, '');
+    const queryIndex = taskUrl.indexOf('?');
+    if (queryIndex >= 0) {
+      const queryString = taskUrl.substring(queryIndex + 1);
+      taskUrl = taskUrl.substring(0, queryIndex);
+
+      const queryParams = new URLSearchParams(queryString);
+      queryParams.forEach((value, key) => {
+        // `bid` is managed centrally from logged-in business context.
+        if (key.toLowerCase() !== 'bid' && !params.has(key)) {
+          params = params.append(key, value);
+        }
+      });
+    }
+
+    if (taskUrl.toLowerCase().startsWith('index_post/')) {
+      taskUrl = taskUrl.substring('index_post/'.length);
+    }
+
+    if (!taskUrl.toLowerCase().startsWith('tasks/')) {
+      taskUrl = 'tasks/' + taskUrl;
+    }
+
     return new Promise((resolve, reject) => {
       const headers = new HttpHeaders();
 
       headers.append('Accept', 'application/json');
       headers.append('Content-Type', 'application/json');
-      data.BusinessID = this.getBusinessID();
+      if (data && (data.BusinessID === undefined || data.BusinessID === null || data.BusinessID === '')) {
+        data.BusinessID = bid;
+      }
 
       this.http
-        .post('apis/index.php/tasks/' + url, data, {
+        .post('apis/index.php/' + taskUrl, data, {
           headers: this.jwt(),
           params,
         })

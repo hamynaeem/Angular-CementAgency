@@ -11,10 +11,10 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./customer-accts.component.scss'],
 })
 export class CustomerAcctsComponent implements OnInit {
-  @ViewChild('Customer') Customer;
+  @ViewChild('Customer') Customer: any;
   public data: any = [];
-  public Products: object[];
-  public Users: object[];
+  public Products: object[] = [];
+  public Users: object[] = [];
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -33,7 +33,7 @@ export class CustomerAcctsComponent implements OnInit {
         fldName: 'RefID',
         button: {
           style: 'link',
-          callback: (e)=>{this.InvNoClicked(e)}} ,
+          callback: (e: any)=>{this.InvNoClicked(e)}} ,
 
       },
       {
@@ -64,7 +64,7 @@ export class CustomerAcctsComponent implements OnInit {
     Data: [],
   };
 
-  public toolbarOptions: object[];
+  public toolbarOptions: object[] = [];
   customer: any = {};
   Customers: any;
 
@@ -147,7 +147,7 @@ export class CustomerAcctsComponent implements OnInit {
       });
   }
 
-  Clicked(e) {}
+  Clicked(e: any) {}
   PrintReport() {
     this.ps.PrintData.Title = 'Customer Accounts Report';
     this.ps.PrintData.SubTitle = 'From: ' + JSON2Date(this.Filter.FromDate);
@@ -167,19 +167,19 @@ export class CustomerAcctsComponent implements OnInit {
         this.Filter.CustomerID
     );
   }
-  CustomerSelected(e) {
+  CustomerSelected(e: any) {
     if (e.itemData) {
-      this.http.getData('customers/' + e.itemData.CustomerID).then((r) => {
+      this.http.getData('customers/' + e.itemData.CustomerID).then((r: any) => {
         this.customer = r;
         this.customer.OpenBalance = 0;
         this.customer.CloseBalance = 0;
       });
     }
   }
-  formatDate(d) {
+  formatDate(d: any) {
     return  FormatDate( JSON2Date(d));
   }
-  InvNoClicked(e){
+  InvNoClicked(e: any){
     console.log(e);
     if (e.RefType == 1){
       this.http.PrintSaleInvoice(e.RefID);

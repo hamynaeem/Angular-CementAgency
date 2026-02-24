@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { GetDateJSON, JSON2Date } from '../../../factories/utilities';
 import { CachedDataService } from '../../../services/cacheddata.service';
@@ -11,7 +11,7 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./sale-ledger.component.scss'],
 })
 export class SaleLedgerComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable!: ElementRef;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -30,6 +30,10 @@ export class SaleLedgerComponent implements OnInit {
       {
         label: 'Booking No',
         fldName: 'BookingID',
+      },
+      {
+        label: 'Customer Name',
+        fldName: 'CustomerName',
       },
       {
         label: 'Product Name',
@@ -57,7 +61,7 @@ export class SaleLedgerComponent implements OnInit {
   nWhat = '1';
   Items: any = [{ ItemID: '1', ItemName: 'Test Item' }];
 
-  public data: object[];
+  public data: object[] = [];
   public Accounts: any;
   public selectedCustomer: any = {};
   constructor(
@@ -84,11 +88,11 @@ export class SaleLedgerComponent implements OnInit {
       'From :' +
       JSON2Date(this.Filter.FromDate) +
       ' To: ' +
-      JSON2Date(this.Filter.ToDate);
+          'Date,BookingID, CustomerName, ProductName, Qty, SPrice, Amount';
 
     this.router.navigateByUrl('/print/print-html');
   }
-  CustomerSelected(e) {
+  CustomerSelected(e: any) {
     console.log(e);
     this.selectedCustomer = e;
   }
@@ -117,17 +121,17 @@ export class SaleLedgerComponent implements OnInit {
         this.data = r;
       });
   }
-  Clicked(e) {}
+  Clicked(e: any) {}
 
-  ItemSelected(e) {}
-  ItemChange(e) {
+  ItemSelected() {}
+  ItemChange(e: any) {
     this.LoadItems();
   }
   async LoadItems() {
     this.Items = [];
     if (this.nWhat == '1') {
       this.cachedData.Products$.subscribe((r: any) => {
-        r.forEach((m) => {
+        r.forEach((m: any) => {
           this.Items.push({
             ItemID: m.ProductID,
             ItemName: m.ProductName,
@@ -138,7 +142,7 @@ export class SaleLedgerComponent implements OnInit {
       });
     } else if (this.nWhat == '2') {
       this.http.getData('units').then((r: any) => {
-        r.forEach((m) => {
+        r.forEach((m: any) => {
           this.Items.push({
             ItemID: m.ID,
             ItemName: m.UnitName,

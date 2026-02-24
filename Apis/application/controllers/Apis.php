@@ -378,7 +378,7 @@ class Apis extends REST_Controller
             
             if ($id == null) {
                 // Use direct MySQL query to bypass any remaining triggers
-                $sql = "INSERT INTO expend (Date, HeadID, CategoryID, Desc, Amount) VALUES (?, ?, ?, ?, ?)";
+                $sql = "INSERT INTO expend (Date, HeadID, CategoryID, `Desc`, Amount) VALUES (?, ?, ?, ?, ?)";  
                 
                 if (!$this->db->query($sql, [
                     $cleanData['Date'],
@@ -397,7 +397,7 @@ class Apis extends REST_Controller
                 
             } else {
                 // Update existing expense record using direct query
-                $sql = "UPDATE expend SET Date=?, HeadID=?, CategoryID=?, Desc=?, Amount=? WHERE ExpendID=?";
+                $sql = "UPDATE expend SET Date=?, HeadID=?, CategoryID=?, `Desc`=?, Amount=? WHERE ExpendID=?";
                 
                 if (!$this->db->query($sql, [
                     $cleanData['Date'],
@@ -666,9 +666,20 @@ class Apis extends REST_Controller
         $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
         $this->output->set_header('Pragma: no-cache');
         $this->output->set_header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
-        $bid  = $this->get('bid');
-        $acct = $this->db->query("select (select AcctType from accttypes where accttypes.AcctTypeID = qrycustomers.AcctTypeID) as Type , " .
-            " CustomerName, case when Balance <0 then abs(Balance) else 0 end as Debit,  case when Balance >=0 then Balance else 0 end as Credit   from qrycustomers where BusinessID = $bid order by AcctType")->result_array();
+        // ensure bid is integer
+        $bid  = (int) $this->get('bid');
+        // `qrycustomers` view does not include BusinessID, so join back to `customers` to filter by BusinessID
+        $sql = "SELECT (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = q.AcctTypeID) AS Type,
+                   q.CustomerName,
+                   CASE WHEN q.Balance < 0 THEN ABS(q.Balance) ELSE 0 END AS Debit,
+                   CASE WHEN q.Balance >= 0 THEN q.Balance ELSE 0 END AS Credit
+            FROM qrycustomers q
+            JOIN customers c ON c.CustomerID = q.CustomerID
+            WHERE c.BusinessID = ?
+            ORDER BY q.AcctType";
+        // Log SQL and parameters for debugging
+        log_message('debug', 'balancesheet SQL: ' . $sql . ' | bid=' . $bid);
+        $acct = $this->db->query($sql, array($bid))->result_array();
 
         $this->response($acct, REST_Controller::HTTP_OK);
     }
@@ -678,13 +689,41 @@ class Apis extends REST_Controller
         $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
         $this->output->set_header('Pragma: no-cache');
         $this->output->set_header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
+        
         $date1 = $this->post('FromDate');
         $date2 = $this->post('ToDate');
 
-        $query  = $this->db->query("CALL sp_GetCashbookHistory('$date1', '$date2')");
-        $result = $query->result_array();
+        try {
+            // Try to use the stored procedure first
+            $query = $this->db->query("CALL sp_GetCashbookHistory('$date1', '$date2')");
+            $result = $query->result_array();
+        } catch (Exception $e) {
+            // If stored procedure doesn't exist, use fallback query
+            log_message('error', 'sp_GetCashbookHistory not found, using fallback query: ' . $e->getMessage());
+            
+            $fallback_query = "
+                SELECT 
+                    v.VoucherID,
+                    v.Date,
+                    v.CustomerID,
+                    COALESCE(c.CustomerName, 'Unknown Customer') AS CustomerName,
+                    c.Address,
+                    v.Description,
+                    v.Debit,
+                    v.Credit,
+                    v.RefType,
+                    v.RefID
+                FROM vouchers v
+                LEFT JOIN customers c ON v.CustomerID = c.CustomerID
+                WHERE v.Date BETWEEN ? AND ?
+                ORDER BY v.Date ASC, v.VoucherID ASC
+            ";
+            
+            $query = $this->db->query($fallback_query, [$date1, $date2]);
+            $result = $query->result_array();
+        }
+        
         $this->response($result, REST_Controller::HTTP_OK);
-
     }
 
     public function orddetails_get($fltr = 0)
@@ -1333,6 +1372,97 @@ class Apis extends REST_Controller
     }
 
     public function test_options()
+    {
+        header('Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers');
+        return $this->response(null, REST_Controller::HTTP_OK);
+    }
+    
+    // Expense Head endpoints
+    public function expenseheads_get($id = null)
+    {
+        try {
+            if ($id !== null) {
+                $this->db->where('HeadID', $id);
+            }
+            
+            $query = $this->db->get('expenseheads');
+            $result = $query->result_array();
+            
+            if (empty($result) && $id !== null) {
+                $this->response([
+                    'result' => 'Error',
+                    'message' => 'Expense head not found'
+                ], REST_Controller::HTTP_NOT_FOUND);
+                return;
+            }
+            
+            $this->response($result, REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            log_message('error', 'Error in expenseheads_get: ' . $e->getMessage());
+            $this->response([
+                'result' => 'Error',
+                'message' => 'Error fetching expense heads: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    public function expenseheads_options()
+    {
+        header('Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers');
+        return $this->response(null, REST_Controller::HTTP_OK);
+    }
+    
+    // Expense Head alias (for compatibility)
+    public function expensehead_get($id = null)
+    {
+        return $this->expenseheads_get($id);
+    }
+    
+    public function expensehead_options()
+    {
+        return $this->expenseheads_options();
+    }
+    
+    // Query expenses for reports
+    public function qryexpenses_get()
+    {
+        try {
+            $filter = $this->get('filter');
+            
+            $this->db->select('e.*, eh.Head as HeadName');
+            $this->db->from('expend e');
+            $this->db->join('expenseheads eh', 'e.HeadID = eh.HeadID', 'left');
+            
+            if (!empty($filter)) {
+                // Parse and apply filter safely
+                $filter = urldecode($filter);
+                // Basic sanitization - you might want to enhance this
+                $filter = preg_replace('/[^a-zA-Z0-9\s\-\'=<>().,]/', '', $filter);
+                $this->db->where($filter);
+            }
+            
+            $this->db->order_by('e.Date', 'ASC');
+            $query = $this->db->get();
+            $result = $query->result_array();
+            
+            // Format the results for better display
+            foreach ($result as &$row) {
+                $row['Description'] = $row['Desc']; // Alias for frontend compatibility
+            }
+            
+            $this->response($result, REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            log_message('error', 'Error in qryexpenses_get: ' . $e->getMessage());
+            $this->response([
+                'result' => 'Error',
+                'message' => 'Error fetching expense data: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    public function qryexpenses_options()
     {
         header('Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers');
         return $this->response(null, REST_Controller::HTTP_OK);

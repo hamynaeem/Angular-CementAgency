@@ -74,7 +74,13 @@ export class CashPaymentComponent implements OnInit {
   }
   SaveData() {
     let voucherid = '';
-    this.Voucher.PrevBalance = this.curCustomer.Balance;
+    // Ensure PrevBalance is a valid number
+    if (typeof this.curCustomer.Balance !== 'number' || isNaN(this.curCustomer.Balance)) {
+      console.warn('curCustomer.Balance is not a valid number:', this.curCustomer.Balance);
+      this.Voucher.PrevBalance = 0;
+    } else {
+      this.Voucher.PrevBalance = this.curCustomer.Balance;
+    }
     
     // Set default values for required fields if missing
     if (!this.Voucher.RefID) this.Voucher.RefID = "0";
@@ -127,8 +133,9 @@ export class CashPaymentComponent implements OnInit {
     }
 
     console.log('Sending voucher data:', this.Voucher);
-    this.http
-      .postTask('vouchers' + voucherid, this.Voucher)
+      const url = 'vouchers' + voucherid;
+      this.http
+        .postTask(url, this.Voucher)
       .then((r) => {
         this.alert.Sucess('Payment Saved', 'Save', 1);
         if (this.EditID != '') {

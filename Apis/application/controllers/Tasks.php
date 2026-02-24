@@ -439,6 +439,24 @@ class Tasks extends REST_Controller
                 $this->db->insert('vouchers', $vouch);
                 $voucherId = $this->db->insert_id();
             }
+
+            // Attempt to update cashbook via stored procedure (defensive: will fail safely if proc still returns rows)
+            try {
+                $custId = intval($vouch['CustomerID']);
+                $vDate = $this->db->escape($vouch['Date']);
+                $debit = floatval($vouch['Debit']);
+                $credit = floatval($vouch['Credit']);
+                $desc = $this->db->escape($vouch['Description']);
+                $refType = intval($vouch['RefType']);
+                $business = intval($vouch['BusinessID']);
+
+                // CALL the procedure; if the procedure previously returned a result set it would cause Error 1415
+                // but running the fix SQL should eliminate that. This call ensures cashbook is updated when triggers are absent.
+                $this->db->query("CALL sp_ManageCashbook($custId, $vDate, $debit, $credit, $desc, $voucherId, $business, $refType)");
+            } catch (Exception $e) {
+                // Log but do not fail the API here — the DB trigger or later processing may handle it
+                log_message('error', 'sp_ManageCashbook call failed: ' . $e->getMessage());
+            }
             
             if ($this->db->trans_status() === FALSE) {
                 $this->db->trans_rollback();

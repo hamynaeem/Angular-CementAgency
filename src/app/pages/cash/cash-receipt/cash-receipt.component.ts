@@ -87,8 +87,14 @@ export class CashReceiptComponent implements OnInit {
     
     // Format date for PHP backend (Y-m-d format)
     if (this.Voucher.Date) {
-      const dateObj = new Date(this.Voucher.Date);
-      if (isNaN(dateObj.getTime())) {
+      let dateObj: Date;
+      if (typeof this.Voucher.Date === 'object') {
+        const d: any = this.Voucher.Date;
+        dateObj = new Date(d.year, d.month - 1, d.day);
+      } else {
+        dateObj = new Date(this.Voucher.Date);
+      }
+      if (!dateObj || isNaN(dateObj.getTime())) {
         this.alert.Error('Invalid date format', 'Error', 1);
         return;
       }
@@ -117,8 +123,25 @@ export class CashReceiptComponent implements OnInit {
     }
     this.AcctTypeID = this.Voucher.AcctTypeID;
     console.log('Sending voucher data:', this.Voucher);
+    const payload: any = {
+      Date: this.Voucher.Date,
+      CustomerID: this.Voucher.CustomerID,
+      Description: this.Voucher.Description,
+      Debit: this.Voucher.Debit || 0,
+      Credit: this.Voucher.Credit || 0,
+      RefID: this.Voucher.RefID || '0',
+      IsPosted: this.Voucher.IsPosted || 0,
+      FinYearID: this.Voucher.FinYearID || 1,
+      RefType: this.Voucher.RefType || 0,
+      BusinessID: (this.Voucher as any).BusinessID || this.http.getBusinessID(),
+      RouteID: this.Voucher.RouteID || null,
+      SalesmanID: this.Voucher.SalesmanID || null,
+      ClosingID: this.Voucher.ClosingID || null,
+      PrevBalance: this.Voucher.PrevBalance || 0
+    };
+
     this.http
-      .postTask('vouchers' + voucherid, this.Voucher)
+      .postTask('vouchers' + voucherid, payload)
       .then((r) => {
         this.alert.Sucess('Receipt Saved', 'Save', 1);
         if (this.EditID != '') {
@@ -130,9 +153,10 @@ export class CashReceiptComponent implements OnInit {
       })
       .catch((err) => {
         this.Voucher.Date = GetDateJSON();
-        console.log(err);
-
-        this.alert.Error(err.error.message, 'Error',1);
+        console.error('Voucher save error:', err);
+        // Show server error message when available, otherwise show status text
+        const serverMsg = err && err.error && (err.error.message || err.error) ? (err.error.message || err.error) : (err.statusText || 'Server error');
+        this.alert.Error(serverMsg, 'Error', 1);
       });
   }
   GetCustomer(CustomerID: string) {

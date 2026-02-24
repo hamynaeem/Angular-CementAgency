@@ -108,7 +108,79 @@ try {
     // Re-enable foreign key checks
     $CI->db->query("SET foreign_key_checks = 1");
     
+    // Test the specific query that's causing the 500 error
+    echo "\n--- TESTING QRYEXPENSES QUERY ---\n";
+    
+    $testFilter = "e.Date between '2025-9-23' and '2025-9-23'";
+    echo "Testing filter: {$testFilter}\n";
+    
+    // Check if we have any data for this date
+    $countQuery = "SELECT COUNT(*) as count FROM expend WHERE Date between '2025-9-23' and '2025-9-23'";
+    $countResult = $CI->db->query($countQuery)->row_array();
+    echo "Records for date 2025-9-23: {$countResult['count']}\n";
+    
+    if ($countResult['count'] == 0) {
+        echo "No data for test date, inserting test record...\n";
+        $CI->db->insert('expend', [
+            'Date' => '2025-09-23',
+            'HeadID' => 1, 
+            'CategoryID' => 1,
+            'Desc' => 'Test expense for API test',
+            'Amount' => 500.00
+        ]);
+        echo "✅ Test record inserted\n";
+    }
+    
+    // Test the actual query from the API
+    $apiQuery = "SELECT 
+                    e.ExpendID,
+                    e.Date,
+                    e.HeadID,
+                    COALESCE(eh.HeadName, CONCAT('Head ID: ', e.HeadID)) as HeadName,
+                    e.CategoryID,
+                    e.`Desc` as Description,
+                    e.Amount
+                FROM expend e
+                LEFT JOIN expenseheads eh ON e.HeadID = eh.HeadID
+                WHERE {$testFilter}
+                ORDER BY e.Date DESC";
+    
+    echo "Executing API query...\n";
+    try {
+        $result = $CI->db->query($apiQuery);
+        if ($result) {
+            $rows = $result->result_array();
+            echo "✅ Query successful, returned " . count($rows) . " rows\n";
+            if (count($rows) > 0) {
+                echo "Sample result: " . json_encode($rows[0]) . "\n";
+            }
+        } else {
+            $error = $CI->db->error();
+            echo "❌ Query failed: " . json_encode($error) . "\n";
+        }
+    } catch (Exception $e) {
+        echo "❌ Query exception: " . $e->getMessage() . "\n";
+    }
+    
+    // Test without join for comparison
+    echo "\nTesting simple query without join...\n";
+    $simpleQuery = "SELECT * FROM expend WHERE Date between '2025-9-23' and '2025-9-23'";
+    try {
+        $result = $CI->db->query($simpleQuery);
+        if ($result) {
+            $rows = $result->result_array();
+            echo "✅ Simple query successful, returned " . count($rows) . " rows\n";
+        } else {
+            $error = $CI->db->error();
+            echo "❌ Simple query failed: " . json_encode($error) . "\n";
+        }
+    } catch (Exception $e) {
+        echo "❌ Simple query exception: " . $e->getMessage() . "\n";
+    }
+    
     echo "\n=== TEST COMPLETED ===\n";
+    echo "\nTo test this manually, access:\n";
+    echo "http://localhost:4200/apis/index.php/apis/qryexpenses?filter=" . urlencode($testFilter) . "\n";
     
 } catch (Exception $e) {
     echo "❌ Test failed with error: " . $e->getMessage() . "\n";

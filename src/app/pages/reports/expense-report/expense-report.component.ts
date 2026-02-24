@@ -3,7 +3,6 @@ import { Router } from '@angular/router';
 import { GetDateJSON, JSON2Date } from '../../../factories/utilities';
 import { HttpBase } from '../../../services/httpbase.service';
 import { MyToastService } from '../../../services/toaster.server';
-import swal from 'sweetalert';
 import { PrintDataService } from '../../../services/print.data.services';
 
 @Component({
@@ -12,8 +11,8 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./expense-report.component.scss']
 })
 export class ExpenseReportComponent implements OnInit {
-  public data: object[];
-  public Heads: object[];
+  public data: object[] = [];
+  public Heads: object[] = [];
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -49,17 +48,17 @@ export class ExpenseReportComponent implements OnInit {
   };
 
 
-  public toolbarOptions: object[];
+  public toolbarOptions: object[] = [];
   constructor(
     private http: HttpBase,
     private ps: PrintDataService,
-    private myToaster: MyToastService,
     private router: Router
   ) { }
 
   ngOnInit() {
     this.http.getData('expensehead').then((r: any) => {
-      this.Heads = r;
+      // ensure dropdown text field exists — API returns `Head` but template expects `HeadName`
+      this.Heads = (r || []).map((h: any) => ({ ...h, HeadName: h.Head || h.HeadName }));
     });
 
     this.FilterData();
@@ -73,19 +72,19 @@ export class ExpenseReportComponent implements OnInit {
     this.router.navigateByUrl('/print/print-html');
   }
   FilterData() {
+    // qualify columns with table alias to avoid ambiguous column errors
     // tslint:disable-next-line:quotemark
-    let filter = "Date between '" + JSON2Date(this.Filter.FromDate) +
-      '\' and \'' + JSON2Date(this.Filter.ToDate) + '\'';
+    let filter = `e.Date between '${JSON2Date(this.Filter.FromDate)}' and '${JSON2Date(this.Filter.ToDate)}'`;
 
 
     if (!(this.Filter.HeadID === '' || this.Filter.HeadID === null)) {
-      filter += ' and HeadID=' + this.Filter.HeadID;
+      filter += ' and e.HeadID=' + this.Filter.HeadID;
     }
     this.http.getData('qryexpenses?filter=' + filter).then((r: any) => {
       this.data = r;
     });
   }
-  Clicked(e) {
+  Clicked(e: any) {
     console.log(e);
 
   }

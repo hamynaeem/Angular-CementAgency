@@ -88,15 +88,19 @@ export class CustomersComponent implements OnInit {
         fldName: 'NTNNo',
         control: 'input',
         type: 'text',
-        label: 'NTN/CNIC',
+        label: 'NTN Number',
+        placeholder: 'Enter National Tax Number',
         size: 6,
       },
-
       {
         fldName: 'CNICNo',
         control: 'input',
-        type: 'number',
-        label: 'STN/NTN No',
+        type: 'text',
+        label: 'CNIC Number',
+        placeholder: 'Enter 13-digit CNIC: 00000-0000000-0',
+        pattern: '^[0-9]{5}-[0-9]{7}-[0-9]{1}$',
+        maxlength: 15,
+        required: false,
         size: 6,
       },
       {
@@ -161,9 +165,13 @@ export class CustomersComponent implements OnInit {
         fldName: 'PhoneNo',
         label: 'Phone No',
       },
-      { 
-        fldName: 'CNIC',
-        label: 'CNIC',
+      {
+        fldName: 'CNICNo',
+        label: 'CNIC Number',
+      },
+      {
+        fldName: 'NTNNo', 
+        label: 'NTN',
       },
 
 
@@ -360,5 +368,31 @@ public rowBackgroundConfig = {
     this.ps.PrintData.Title = 'Customer List';
     this.ps.PrintData.SubTitle = 'City = ' + this.Filter.City;
     this.router.navigateByUrl('/print/print-html');
+  }
+
+  // Helper function to format CNIC number as user types
+  formatCNIC(cnicValue: string): string {
+    // Remove all non-digits
+    const digits = cnicValue.replace(/\D/g, '');
+    
+    // Apply CNIC format: 00000-0000000-0
+    if (digits.length >= 5) {
+      let formatted = digits.slice(0, 5);
+      if (digits.length > 5) {
+        formatted += '-' + digits.slice(5, 12);
+      }
+      if (digits.length > 12) {
+        formatted += '-' + digits.slice(12, 13);
+      }
+      return formatted;
+    }
+    
+    return digits;
+  }
+
+  // Validate CNIC format
+  validateCNIC(cnic: string): boolean {
+    const cnicPattern = /^[0-9]{5}-[0-9]{7}-[0-9]{1}$/;
+    return cnicPattern.test(cnic);
   }
 }

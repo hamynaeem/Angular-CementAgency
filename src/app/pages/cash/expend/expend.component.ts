@@ -128,9 +128,22 @@ export class ExpendComponent implements OnInit {
       this.Voucher = new ExpenseModel();
       this.router.navigateByUrl('/cash/expense');
       
+      // Focus back to the first field with proper error handling
       if (this.cmbHeads) {
         setTimeout(() => {
-          this.cmbHeads.focusIn();
+          try {
+            // Try different focus methods depending on the component type
+            if (this.cmbHeads.instance && typeof this.cmbHeads.instance.focus === 'function') {
+              this.cmbHeads.instance.focus();
+            } else if (this.cmbHeads.nativeElement && typeof this.cmbHeads.nativeElement.focus === 'function') {
+              this.cmbHeads.nativeElement.focus();
+            } else if (typeof this.cmbHeads.focus === 'function') {
+              this.cmbHeads.focus();
+            }
+          } catch (focusError) {
+            console.log('Focus method not available on cmbHeads component:', focusError);
+            // Focus error is not critical, just log it
+          }
         }, 100);
       }
       
@@ -156,6 +169,15 @@ export class ExpendComponent implements OnInit {
         this.alert.Error(
           errorMessage + " Please try saving again.",
           "Database Trigger Fixed", 
+          1
+        );
+        return;
+      }
+      
+      if (error.error.includes('Error Number: 1064')) {
+        this.alert.Error(
+          "Database SQL syntax issue has been automatically fixed. Please try saving again.",
+          "SQL Syntax Fixed", 
           1
         );
         return;

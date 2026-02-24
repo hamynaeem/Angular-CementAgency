@@ -1,16 +1,16 @@
 import { Component, OnInit } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 class Person {
-  ProductID: number;
-  ProductName: string;
-  CompanyName: string;
+  ProductID!: number;
+  ProductName!: string;
+  CompanyName!: string;
 }
 
 class DataTablesResponse {
   data: any;
-  draw: number;
-  recordsFiltered: number;
-  recordsTotal: number;
+  draw!: number;
+  recordsFiltered!: number;
+  recordsTotal!: number;
 }
 @Component({
   selector: "app-expreport",
@@ -19,7 +19,7 @@ class DataTablesResponse {
 })
 export class ExpReportComponent implements OnInit {
   dtOptions: DataTables.Settings = {};
-  persons: Person[];
+  persons!: Person[];
 
   constructor(private http: HttpClient) {}
 

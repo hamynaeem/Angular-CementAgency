@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { JSON2Date, GetDateJSON, getDMYDate } from '../../../factories/utilities';
+import { getDMYDate } from '../../../factories/utilities';
 import { HttpBase } from '../../../services/httpbase.service';
 import { Router } from '@angular/router';
 import { PrintDataService } from '../../../services/print.data.services';
@@ -10,12 +10,12 @@ import { formatNumber } from '../../../factories/utilities';
   styleUrls: ["./balance-sheet.component.scss"],
 })
 export class BalanceSheetComponent implements OnInit {
-  public data: object[];
-  public Salesman: object[];
-  public Routes: object[];
+  public data: object[] = [];
+  public Salesman: object[] = [];
+  public Routes: object[] = [];
 
   curCustomer: any = {};
-  VouchersList: object[];
+  VouchersList: object[] = [];
 
   dteDate = getDMYDate();
   setting = {
@@ -32,7 +32,7 @@ export class BalanceSheetComponent implements OnInit {
         label: "Credit",
         fldName: "Credit",
         sum: true,
-        valueFormatter: (d) => {
+        valueFormatter: (d: any) => {
           return formatNumber(d["Credit"]);
           
         },
@@ -41,7 +41,7 @@ export class BalanceSheetComponent implements OnInit {
         label: "Debit",
         fldName: "Debit",
         sum: true,
-        valueFormatter: (d) => {
+        valueFormatter: (d: any) => {
           return formatNumber(d["Debit"]);
           
         },
