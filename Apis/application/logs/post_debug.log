@@ -1,0 +1,20 @@
+POST DATA: Array
+(
+    [Packing] => 1
+    [PPrice] => 111
+    [SPrice] => 222
+    [Status] => 1
+    [Category] => 10
+    [ProductName] => test1
+)
+
+POST DATA: Array
+(
+    [Packing] => 1
+    [PPrice] => 111
+    [SPrice] => 222
+    [Status] => 1
+    [Category] => 10
+    [ProductName] => test1
+)
+
