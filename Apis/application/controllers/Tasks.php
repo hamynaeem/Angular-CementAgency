@@ -608,6 +608,11 @@ class Tasks extends REST_Controller
         $this->PostVouchers($id);
     }
 
+    public function posttransport_post($id)
+    {
+        $this->PostTransport($id);
+    }
+
     private function PostVouchers($id = 0, $bid = 0)
     {
         if ($id > 0) {
@@ -637,6 +642,57 @@ class Tasks extends REST_Controller
             $posted['IsPosted'] = '1';
             $this->db->where('VoucherID', $InvoiceValue['VoucherID']);
             $this->db->update('vouchers', $posted);
+        }
+        $this->db->trans_commit();
+    }
+
+    private function PostTransport($id = 0, $bid = 0)
+    {
+        if ($id > 0) {
+            $this->db->where('ID', $id);
+        } else {
+            if ($bid > 0) {
+                $this->db->where('BusinessID', $bid);
+            }
+        }
+
+        // If transportdetails has IsPosted column, only post unposted rows
+        $fields = $this->db->field_data('transportdetails');
+        $hasIsPosted = false;
+        foreach ($fields as $f) {
+            if ($f->name == 'IsPosted') {
+                $hasIsPosted = true;
+                break;
+            }
+        }
+        if ($hasIsPosted) {
+            $this->db->where('IsPosted', 0);
+        }
+
+        $this->db->where("Date <> '0000-00-00'");
+        $rows = $this->db->get('transportdetails')->result_array();
+
+        $this->db->trans_begin();
+        foreach ($rows as $row) {
+            $data = [];
+            // map TransportID as CustomerID for accounting entries
+            $data['CustomerID'] = isset($row['TransportID']) ? $row['TransportID'] : 0;
+            $data['Date'] = isset($row['Date']) ? $row['Date'] : date('Y-m-d H:i:s');
+            $data['Credit'] = isset($row['Income']) ? $row['Income'] : 0;
+            $data['Debit'] = isset($row['Expense']) ? $row['Expense'] : 0;
+            $data['Description'] = isset($row['Details']) ? $row['Details'] : '';
+            $data['RefID'] = isset($row['ID']) ? $row['ID'] : 0;
+            $data['RefType'] = 3; // transport ref type
+
+            if ($data['Debit'] != 0 || $data['Credit'] != 0) {
+                $this->AddToAccount($data);
+            }
+
+            if ($hasIsPosted) {
+                $posted['IsPosted'] = '1';
+                $this->db->where('ID', $row['ID']);
+                $this->db->update('transportdetails', $posted);
+            }
         }
         $this->db->trans_commit();
     }

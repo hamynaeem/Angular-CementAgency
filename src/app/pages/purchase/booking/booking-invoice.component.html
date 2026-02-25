@@ -156,6 +156,9 @@
                 (change)="SelectedProduct = $event"
               >
               </ng-select>
+              <div class="print-only">
+                <strong>{{ getSupplierName(booking.SupplierID) }}</strong>
+              </div>
             </div>
 
             <div class="col-md-12">
@@ -173,6 +176,9 @@
                 [clearable]="true"
               >
               </ng-select>
+              <div class="print-only">
+                <strong>{{ getProductName(bookingDetail.ProductID) }}</strong>
+              </div>
             </div>
             <div class="col-md-3">
               <ft-input-control
@@ -301,6 +307,9 @@
                 [clearable]="true"
               >
               </ng-select>
+              <div class="print-only">
+                <strong>{{ getCustomerName(saleDetail.CustomerID) }}</strong>
+              </div>
             </div>
           </div>
           <div class="row no-pad">
@@ -319,6 +328,9 @@
                 [clearable]="true"
               >
               </ng-select>
+              <div class="print-only">
+                <strong>{{ getProductName(saleDetail.ProductID) }}</strong>
+              </div>
             </div>
             <div class="row no-pad">
               <div class="col-md-3">
@@ -492,6 +504,15 @@
             (click)="saveAndPrint()"
           >
             <i class="fa fa-print"></i> Save and Print
+          </button>
+        </div>
+        <div class="col-md-2">
+          <button
+            type="button"
+            class="btn btn-info btn-block"
+            (click)="printPreview()"
+          >
+            <i class="fa fa-print"></i> Print (Preview)
           </button>
         </div>
         <div class="col-md-2">

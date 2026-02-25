@@ -76,3 +76,75 @@ ft-input-control {
 .btn-close:hover {
   color: #000;
 }
+
+/* Print styles: show only invoice content and hide controls */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-section,
+  #print-section * {
+    visibility: visible;
+  }
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print,
+  .btn,
+  .form-control,
+  .table thead,
+  .table tfoot {
+    display: none !important;
+  }
+  .custom {
+    display: none !important;
+  }
+  .print-only {
+    display: none;
+  }
+  @media print {
+    .print-only {
+      display: block !important;
+    }
+  }
+
+  /* show only print section container */
+  :not(#print-section) {
+    visibility: hidden;
+  }
+  #print-section,
+  #print-section * {
+    visibility: visible;
+  }
+
+  /* make print-section occupy full page */
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0.5cm;
+  }
+
+  /* table formatting for print */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12pt;
+  }
+  table th,
+  table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+  }
+
+  /* remove background colors for printing */
+  .bg-light-primary,
+  .bg-light-success {
+    background: transparent !important;
+  }
+}

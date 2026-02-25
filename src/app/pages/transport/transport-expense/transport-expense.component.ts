@@ -12,6 +12,9 @@ import { TransportDetail } from '../transport.model';
 })
 export class TransportExpenseComponent implements OnInit {
   @ViewChild('cmbCustomer') cmbCustomer;
+  public showReports = false;
+  public reports: any[] = [];
+  private editingDetailID: number | null = null;
   public Voucher: TransportDetail;
   AcctTypes = [];
   EditID = '';
@@ -50,6 +53,48 @@ export class TransportExpenseComponent implements OnInit {
       console.log(this.EditID);
     });
   }
+  canSave() {
+    return (
+      this.Voucher &&
+      this.Voucher.TransportID &&
+      this.Voucher.TransportID !== 0 &&
+      this.Voucher.Expense > 0
+    );
+  }
+
+  ShowReports() {
+    // Toggle report panel and load data. If a vehicle is selected, filter by it; otherwise load all.
+    this.showReports = !this.showReports;
+    if (this.showReports) {
+      let endpoint = 'transportdetails?orderby=ID';
+      if (this.Voucher && this.Voucher.TransportID && this.Voucher.TransportID !== 0) {
+        endpoint = 'transportdetails?filter=TransportID=' + this.Voucher.TransportID + '&orderby=ID';
+      }
+      this.http
+        .getData(endpoint)
+        .then((r: any) => {
+          // ensure Vehicles list is available to map TransportID -> TransportName
+          const ensureVehicles = (this.Vehicles && this.Vehicles.length > 0)
+            ? Promise.resolve(this.Vehicles)
+            : this.http.getData('transports');
+
+          ensureVehicles.then((vehicles: any[]) => {
+            this.Vehicles = vehicles;
+            this.reports = (r || []).map((row) => {
+              const v = (this.Vehicles || []).find(
+                (x) => x.TransportID == row.TransportID
+              );
+              return Object.assign({}, row, {
+                TransportName: v ? v.TransportName : ''
+              });
+            });
+          });
+        })
+        .catch(() => {
+          this.reports = [];
+        });
+    }
+  }
   async FindINo() {
     let voucher: any = await this.http.getData('transportdetails/' + this.Ino);
     if (voucher.Expense > 0)
@@ -74,22 +119,74 @@ export class TransportExpenseComponent implements OnInit {
     }
 
     console.log(this.Voucher);
-    this.http
-      .postTask('transportvoucher' + voucherid, this.Voucher)
-      .then((r) => {
-        this.alert.Sucess('Expense Saved', 'Save', 1);
-        if (this.EditID != '') {
-          this.router.navigateByUrl('/transport/expense/');
-        } else {
-          this.Cancel()
+    const doPost = () =>
+      this.http.postTask('transportvoucher' + voucherid, this.Voucher);
 
-        }
+    // If we are editing an existing transport detail, delete it first then post new
+    if (this.editingDetailID) {
+      this.http
+        .Delete('transportdetails', this.editingDetailID.toString())
+        .then(() => doPost())
+        .then((r) => {
+          this.alert.Sucess('Expense Saved', 'Save', 1);
+          this.editingDetailID = null;
+          if (this.EditID != '') {
+            this.router.navigateByUrl('/transport/expense/');
+          } else {
+            this.Cancel();
+          }
+          // refresh reports if visible
+          if (this.showReports) this.ShowReports();
+        })
+        .catch((err) => {
+          this.Voucher.Date = GetDateJSON();
+          console.log(err);
+          this.alert.Error(err.error.message, 'Error', 1);
+        });
+    } else {
+      doPost()
+        .then((r) => {
+          this.alert.Sucess('Expense Saved', 'Save', 1);
+          if (this.EditID != '') {
+            this.router.navigateByUrl('/transport/expense/');
+          } else {
+            this.Cancel();
+          }
+          if (this.showReports) this.ShowReports();
+        })
+        .catch((err) => {
+          this.Voucher.Date = GetDateJSON();
+          console.log(err);
+          this.alert.Error(err.error.message, 'Error', 1);
+        });
+    }
+  }
+
+  editReport(r) {
+    // populate form with report row values for editing
+    this.editingDetailID = r.ID || r.id || null;
+    this.Voucher.Date = GetDateJSON(new Date(r.Date));
+    this.Voucher.TransportID = r.TransportID;
+    this.Voucher.Details = r.Description || r.Details;
+    this.Voucher.Expense = r.Expense || 0;
+    this.Voucher.Income = r.Income || 0;
+    // scroll to form or ensure visible
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  deleteReport(r) {
+    const id = r.ID || r.id;
+    if (!id) return;
+    if (!confirm('Delete this transport record?')) return;
+    this.http
+      .Delete('transportdetails', id.toString())
+      .then(() => {
+        this.alert.Sucess('Record deleted', 'Delete', 1);
+        // refresh reports
+        if (this.showReports) this.ShowReports();
       })
       .catch((err) => {
-        this.Voucher.Date = GetDateJSON();
-        console.log(err);
-
-        this.alert.Error(err.error.message, 'Error', 1);
+        this.alert.Error('Delete failed', 'Error', 1);
       });
   }
   GetVehicle(VehicleID) {

@@ -22,6 +22,7 @@ export class JournalvoucherComponent implements OnInit {
   VouchersList: object[] = [];
   curCustomer: any = {};
   curCustomer1: any = {};
+  showPayments: boolean = false;
 
   voucher: any;
   voucher1: any;
@@ -42,6 +43,37 @@ export class JournalvoucherComponent implements OnInit {
     });
 
 
+  }
+
+  togglePayments() {
+    this.showPayments = !this.showPayments;
+    if (this.showPayments) {
+      this.loadPayments();
+    }
+  }
+
+  loadPayments() {
+    // Load recent vouchers/payments. If an account is selected, filter by it.
+    let endpoint = 'qryvouchers?orderby=Date desc&limit=50';
+    if (this.Voucher && this.Voucher.CustomerID) {
+      endpoint = `qryvouchers?filter=CustomerID=${this.Voucher.CustomerID}&orderby=Date desc&limit=50`;
+    } else if (this.Voucher1 && this.Voucher1.CustomerID) {
+      endpoint = `qryvouchers?filter=CustomerID=${this.Voucher1.CustomerID}&orderby=Date desc&limit=50`;
+    } else {
+      // No account selected: don't load all by default, clear list.
+      this.VouchersList = [];
+      return;
+    }
+
+    this.http
+      .getData(endpoint)
+      .then((r: any) => {
+        this.VouchersList = r || [];
+      })
+      .catch((err) => {
+        console.warn('Failed to load payments', err);
+        this.VouchersList = [];
+      });
   }
 
   LoadCustomer(event: any, v: number) {

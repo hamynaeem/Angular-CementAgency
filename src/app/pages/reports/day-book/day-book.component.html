@@ -84,7 +84,22 @@
         <div class="form-group col-md-2">
           <div class="custom-control custom-radio">
             <input
-              checked=""
+              class="custom-control-input radio-inline"
+              id="radioTransport"
+              name="radio"
+              type="radio"
+              value="4"
+              [(ngModel)]="nWhat"
+              (change)="TypeChange($event)"
+            />
+            <label class="custom-control-label" for="radioTransport">
+              Transport
+            </label>
+          </div>
+        </div>
+        <div class="form-group col-md-2">
+          <div class="custom-control custom-radio">
+            <input
               class="custom-control-input radio-inline radio-inline radio-success"
               id="radioSuccess"
               name="radio"

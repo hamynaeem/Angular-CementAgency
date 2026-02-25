@@ -1,0 +1,14 @@
+/* Styles for payments panel */
+.payments-panel .card {
+	max-height: 320px;
+	overflow-y: auto;
+}
+.payments-panel .list-group-item {
+	white-space: normal;
+	word-break: break-word;
+}
+.payments-panel .text-wrap {
+	max-width: 55vw;
+	overflow-wrap: break-word;
+}
+

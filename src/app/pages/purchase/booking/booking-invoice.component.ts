@@ -433,6 +433,22 @@ export class BookingInvoiceComponent
       });
   }
 
+  /**
+   * Print current invoice view without saving to server.
+   * This prints all displayed items (booking and sale items) as-is.
+   */
+  printPreview() {
+    try {
+      // ensure UI updated
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    } catch (err) {
+      console.warn('Print preview failed', err);
+      this.myToaster.Error('Unable to open print preview', 'Error');
+    }
+  }
+
   downloadPdf() {
     // Save current data but don't navigate away, then render the visible
     // booking form to PDF and download it.
@@ -572,5 +588,24 @@ export class BookingInvoiceComponent
 
   closeModal() {
     this.modalRef?.hide();
+  }
+
+  // Helper methods used by template to resolve display names.
+  getSupplierName(id: any): string {
+    if (!id || !this.Suppliers) return '';
+    const s = this.Suppliers.find((x: any) => x.CustomerID == id);
+    return s ? s.CustomerName : '';
+  }
+
+  getCustomerName(id: any): string {
+    if (!id || !this.Customers) return '';
+    const c = this.Customers.find((x: any) => x.CustomerID == id);
+    return c ? c.CustomerName : '';
+  }
+
+  getProductName(id: any): string {
+    if (!id || !this.Products) return '';
+    const p = this.Products.find((x: any) => x.ProductID == id);
+    return p ? p.ProductName : '';
   }
 }

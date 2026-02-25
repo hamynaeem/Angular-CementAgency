@@ -1,7 +1,47 @@
 <div widget class="card border-0 box-shadow">
   <div class="card-header transparent border-0 text-muted">
+    <div class="row">
+      <div class="col-md-6">
+        <button type="button" class="btn btn-info btn-sm" (click)="togglePayments()">
+          <i class="fa fa-list"></i>
+          Show Payments
+        </button>
+      </div>
+    </div>
   </div>
   <div class="card-block widget-body">
+    <div *ngIf="showPayments" class="payments-panel mb-3">
+      <div class="card p-2">
+        <h6 class="mb-2">Recent Payments</h6>
+
+        <div *ngIf="!Voucher.CustomerID && !Voucher1.CustomerID" class="text-muted mb-2">
+          Select an account to filter payments.
+        </div>
+
+        <div *ngIf="VouchersList && VouchersList.length > 0">
+          <ul class="list-group">
+            <li
+              *ngFor="let v of VouchersList"
+              class="list-group-item d-flex justify-content-between align-items-start clickable-row"
+              (click)="openVoucher(v)"
+            >
+              <div class="mr-3">
+                <div><strong>{{ v.Date | date:'yyyy-MM-dd' }}</strong></div>
+                <div class="text-wrap">{{ v.Description }}</div>
+                <div class="text-muted small">{{ v.CustomerName || v.AccountName || '' }}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-weight-bold">{{ (v.Credit || v.Debit) | number:'1.0-0' }}</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div *ngIf="VouchersList && VouchersList.length === 0 && (Voucher.CustomerID || Voucher1.CustomerID)" class="text-muted">
+          No payments found for selected account.
+        </div>
+      </div>
+    </div>
     <form #frmFilter="ngForm" (submit)="SaveData()">
       <div class="container">
         <div class="row no-gutter">

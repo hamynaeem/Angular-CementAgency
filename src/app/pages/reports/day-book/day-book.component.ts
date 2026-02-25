@@ -3,6 +3,8 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import swal from 'sweetalert';
 import { GetDateJSON, JSON2Date } from '../../../factories/utilities';
+// Add getYMDDate utility function import or definition
+import { getYMDDate } from '../../../factories/utilities';
 import { CachedDataService } from '../../../services/cacheddata.service';
 import { HttpBase } from '../../../services/httpbase.service';
 import { PrintBillService } from '../../../services/print-bill.service';
@@ -10,6 +12,7 @@ import { PrintDataService } from '../../../services/print.data.services';
 import { BookingSetting } from './booking.settings';
 import { ExpenseSetting } from './expense.setting';
 import { VoucherSetting } from './vouchers.settings';
+import { TransportSetting } from './transport.setting';
 
 @Component({
   selector: 'app-day-book',
@@ -17,7 +20,7 @@ import { VoucherSetting } from './vouchers.settings';
   styleUrls: ['./day-book.component.scss'],
 })
 export class DayBookComponent implements OnInit {
-  public data: object[];
+  public data: object[] = [];
   Salesman: Observable<any[]>;
   public Routes: Observable<any[]>;
   public Customers: Observable<any[]>;
@@ -30,7 +33,8 @@ export class DayBookComponent implements OnInit {
     CustomerID: '',
   };
   settings: any = BookingSetting;
-  nWhat = '2';
+  // default to Vouchers
+  nWhat = '3';
   constructor(
     private http: HttpBase,
     private cachedData: CachedDataService,
@@ -49,12 +53,10 @@ export class DayBookComponent implements OnInit {
 
   FilterData() {
     let table = '';
-    let filter =
-      "Date between '" +
-      JSON2Date(this.Filter.FromDate) +
-      "' and '" +
-      JSON2Date(this.Filter.ToDate) +
-      "' ";
+    const fromDate = getYMDDate(new Date(JSON2Date(this.Filter.FromDate)));
+    const toDate = getYMDDate(new Date(JSON2Date(this.Filter.ToDate)));
+
+    let filter = `Date between '${fromDate}' and '${toDate}'`;
 
     if (!(this.Filter.CustomerID === '' || this.Filter.CustomerID === null)) {
       filter += ' and CustomerID=' + this.Filter.CustomerID;
@@ -62,23 +64,30 @@ export class DayBookComponent implements OnInit {
 
     if (this.nWhat === '1') {
       this.settings = ExpenseSetting;
-      table = 'qryexpense?orderby=ExpendID ';
+      table = 'qryexpense?orderby=ExpendID';
     } else if (this.nWhat === '2') {
       this.settings = BookingSetting;
-      table = 'qrybooking?orderby=BookingID ';
+      table = 'qrybooking?orderby=BookingID';
     } else if (this.nWhat === '3') {
       this.settings = VoucherSetting;
-      table = 'qryvouchers?orderby=VoucherID ';
+      table = 'qryvouchers?orderby=VoucherID';
+    } else if (this.nWhat === '4') {
+      this.settings = TransportSetting;
+      table = 'transportdetails?orderby=ID';
     }
 
-    this.http.getData(table + '&filter=' + filter).then((r: any) => {
-      r.map((x) => {
+    // Debug: log the table and filter being requested
+    console.log('DayBook.FilterData ->', table, filter);
+
+    this.http.getData(table, filter).then((r: any) => {
+      console.log('DayBook.FilterData result count=', (r || []).length);
+      (r || []).forEach((x: any) => {
         x.IsPosted == '1' ? (x.Posted = 'Posted') : (x.Posted = 'Un Posted');
       });
       this.data = r;
     });
   }
-  Clicked(e) {
+  Clicked(e: any) {
     let table: any = {};
     let url = '';
     console.log(e);
@@ -104,11 +113,11 @@ export class DayBookComponent implements OnInit {
           if (willDelete) {
             this.http
               .postTask('delete', table)
-              .then((r) => {
+              .then(() => {
                 this.FilterData();
                 swal('Deleted!', 'Your data has been deleted!', 'success');
               })
-              .catch((er) => {
+              .catch(() => {
                 swal('Oops!', 'Error while deleting voucher', 'error');
               });
           }
@@ -163,7 +172,7 @@ export class DayBookComponent implements OnInit {
 
         }
 
-        this.http.postTask(url, {}).then((r) => {
+        this.http.postTask(url, {}).then(() => {
           e.data.IsPosted = '1';
           swal('Post!', 'Your data has been posted!', 'success');
           this.FilterData();
@@ -190,11 +199,11 @@ export class DayBookComponent implements OnInit {
               InvoiceID: e.data.InvoiceID,
               Amount: e.data.Balance,
             })
-            .then((r) => {
+            .then(() => {
               this.FilterData();
               swal('Paid!', 'Your data has been paid!', 'success');
             })
-            .catch((er) => {
+            .catch(() => {
               swal('Oops!', 'Error while paying invoice', 'error');
             });
         }
@@ -234,7 +243,7 @@ export class DayBookComponent implements OnInit {
           cancel: true,
           confirm: true,
         },
-      }).then((res) => {
+      }).then(() => {
         if (e.data.DtCr === 'DT') {
           swal({
             text: 'Invalid Invoice type',
@@ -252,13 +261,13 @@ export class DayBookComponent implements OnInit {
               'success'
             );
           })
-          .catch((er) => {
+          .catch(() => {
             swal('Oops!', 'Error while paying invoice', 'error');
           });
       });
     }
   }
-  TypeChange(e) {
+  TypeChange(_e: any) {
     this.FilterData();
   }
 
@@ -276,7 +285,7 @@ export class DayBookComponent implements OnInit {
           .postTask('CloseAccount/' + this.http.getBusinessID(), {
             ClosingID: this.http.getClosingID(),
           })
-          .then((r) => {
+          .then(() => {
             swal(
               'Close Account!',
               'Account was successfully closed, Login to next date',
@@ -284,7 +293,7 @@ export class DayBookComponent implements OnInit {
             );
             this.router.navigateByUrl('/auth/login');
           })
-          .catch((er) => {
+          .catch(() => {
             swal('Oops!', 'Error while clsoing account', 'error');
           });
       }
