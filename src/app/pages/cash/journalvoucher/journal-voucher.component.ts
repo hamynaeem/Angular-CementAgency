@@ -76,6 +76,17 @@ export class JournalvoucherComponent implements OnInit {
       });
   }
 
+  openVoucher(v: any) {
+    if (!v || !v.VoucherID) return;
+    // Use Credit to determine receipt vs payment
+    const amount = v.Credit || v.Debit || 0;
+    if (amount > 0 && v.Credit > 0) {
+      this.router.navigateByUrl('/cash/cashreceipt/' + v.VoucherID);
+    } else {
+      this.router.navigateByUrl('/cash/cashpayment/' + v.VoucherID);
+    }
+  }
+
   LoadCustomer(event: any, v: number) {
     if (event.itemData.AcctTypeID !== "") {
       this.http
