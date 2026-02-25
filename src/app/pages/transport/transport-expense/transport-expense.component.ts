@@ -16,6 +16,7 @@ export class TransportExpenseComponent implements OnInit {
   public reports: any[] = [];
   private editingDetailID: number | null = null;
   public Voucher: TransportDetail;
+  public newCategory: string = '';
   AcctTypes = [];
   EditID = '';
   public Ino = '';
@@ -81,11 +82,23 @@ export class TransportExpenseComponent implements OnInit {
           ensureVehicles.then((vehicles: any[]) => {
             this.Vehicles = vehicles;
             this.reports = (r || []).map((row) => {
-              const v = (this.Vehicles || []).find(
-                (x) => x.TransportID == row.TransportID
-              );
+              const v = (this.Vehicles || []).find((x) => x.TransportID == row.TransportID);
+              // normalize description and categories
+              const description = row.Description || row.Details || '';
+              let categories: string[] = [];
+              if (row.Categories && Array.isArray(row.Categories)) {
+                categories = row.Categories;
+              } else if (row.CategoriesString && typeof row.CategoriesString === 'string') {
+                categories = row.CategoriesString.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+              } else if (row.Categories && typeof row.Categories === 'string') {
+                // sometimes API returns a comma-separated string in Categories
+                categories = row.Categories.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+              }
+
               return Object.assign({}, row, {
-                TransportName: v ? v.TransportName : ''
+                TransportName: v ? v.TransportName : '',
+                Description: description,
+                Categories: categories,
               });
             });
           });
@@ -170,6 +183,14 @@ export class TransportExpenseComponent implements OnInit {
     this.Voucher.Details = r.Description || r.Details;
     this.Voucher.Expense = r.Expense || 0;
     this.Voucher.Income = r.Income || 0;
+    // populate categories if available
+    if (r.Categories && Array.isArray(r.Categories)) {
+      this.Voucher.Categories = r.Categories;
+    } else if (r.CategoriesString && typeof r.CategoriesString === 'string') {
+      this.Voucher.Categories = r.CategoriesString.split(',').map((s) => s.trim()).filter((s) => s.length>0);
+    } else {
+      this.Voucher.Categories = [];
+    }
     // scroll to form or ensure visible
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -211,8 +232,26 @@ export class TransportExpenseComponent implements OnInit {
       Details: null,
       Income: 0,
       Expense: 0,
+      Categories: [],
     };
 
     this.router.navigateByUrl('/transport/expense');
+  }
+
+  addCategory() {
+    if (!this.newCategory || !this.newCategory.trim()) return;
+    const v = this.newCategory.trim();
+    if (!this.Voucher.Categories) this.Voucher.Categories = [];
+    if (this.Voucher.Categories.indexOf(v) === -1) {
+      this.Voucher.Categories.push(v);
+    }
+    this.newCategory = '';
+  }
+
+  removeCategory(idx: number) {
+    if (!this.Voucher.Categories) return;
+    if (idx > -1 && idx < this.Voucher.Categories.length) {
+      this.Voucher.Categories.splice(idx, 1);
+    }
   }
 }

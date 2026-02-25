@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
-import { Router } from "@angular/router";
+import { Router, ActivatedRoute, Params } from "@angular/router";
 import { JSON2Date } from "../../../factories/utilities";
 import { HttpBase } from "../../../services/httpbase.service";
 import { MyToastService } from "../../../services/toaster.server";
@@ -14,6 +14,7 @@ export class JournalvoucherComponent implements OnInit {
   @ViewChild("cmbCustomer") cmbCustomer: any;
   public Voucher = new VoucherModel();
   public Voucher1 = new VoucherModel();
+  EditID = '';
   Customers = [];
   Customers1 = [];
   AcctTypes = [];
@@ -30,7 +31,8 @@ export class JournalvoucherComponent implements OnInit {
   constructor(
     private http: HttpBase,
     private alert: MyToastService,
-    private router: Router
+    private router: Router,
+    private activatedRoute: ActivatedRoute
   ) { }
 
   ngOnInit() {
@@ -43,6 +45,42 @@ export class JournalvoucherComponent implements OnInit {
     });
 
 
+    this.activatedRoute.params.subscribe((params: Params) => {
+      if (params.EditID) {
+        this.EditID = params.EditID;
+        this.loadVoucherById(this.EditID);
+      }
+    });
+  }
+
+  loadVoucherById(id: string) {
+    if (!id) return;
+    this.http.getData('qryvouchers?filter=VoucherID=' + id).then((r: any) => {
+      if (!r || r.length === 0) return;
+      const v = r[0];
+      this.Voucher = v;
+      // convert date to yyyy-mm-dd for inputs
+      const dateObj = new Date(v.Date);
+      this.Voucher.Date = dateObj.toISOString().slice(0, 10);
+      this.Voucher.RefType = v.RefType;
+      this.Voucher1 = new VoucherModel();
+      // If counter entry is available, try to load it too
+      if (v.RefID) {
+        this.http.getData('qryvouchers?filter=RefID=' + v.RefID).then((d: any) => {
+          if (d && d.length) {
+            // pick the other side of the journal pair
+            const other = d.find((x: any) => x.VoucherID != v.VoucherID) || d[0];
+            if (other) {
+              this.Voucher1 = other;
+              const dateObj2 = new Date(other.Date);
+              this.Voucher1.Date = dateObj2.toISOString().slice(0, 10);
+            }
+          }
+        });
+      }
+      // Load customers list for selects (populate AcctTypes and customers as needed)
+      this.http.getData('accttypes').then((r2: any) => { this.AcctTypes = r2; });
+    });
   }
 
   togglePayments() {
@@ -53,22 +91,21 @@ export class JournalvoucherComponent implements OnInit {
   }
 
   loadPayments() {
-    // Load recent vouchers/payments. If an account is selected, filter by it.
-    let endpoint = 'qryvouchers?orderby=Date desc&limit=50';
+    // Load recent vouchers/payments for journal vouchers only (RefType = 4).
+    // Remove account requirement: show all journal payments, optionally filtered by selected account.
+    let baseFilter = 'RefType=4';
+    let endpoint = `qryvouchers?filter=${baseFilter}&orderby=Date desc&limit=50`;
     if (this.Voucher && this.Voucher.CustomerID) {
-      endpoint = `qryvouchers?filter=CustomerID=${this.Voucher.CustomerID}&orderby=Date desc&limit=50`;
+      endpoint = `qryvouchers?filter=${baseFilter} and CustomerID=${this.Voucher.CustomerID}&orderby=Date desc&limit=50`;
     } else if (this.Voucher1 && this.Voucher1.CustomerID) {
-      endpoint = `qryvouchers?filter=CustomerID=${this.Voucher1.CustomerID}&orderby=Date desc&limit=50`;
-    } else {
-      // No account selected: don't load all by default, clear list.
-      this.VouchersList = [];
-      return;
+      endpoint = `qryvouchers?filter=${baseFilter} and CustomerID=${this.Voucher1.CustomerID}&orderby=Date desc&limit=50`;
     }
 
     this.http
       .getData(endpoint)
       .then((r: any) => {
-        this.VouchersList = r || [];
+        // ensure we only keep journal vouchers
+        this.VouchersList = (r || []).filter((x: any) => (x.RefType == 4 || x.RefType == '4'));
       })
       .catch((err) => {
         console.warn('Failed to load payments', err);
@@ -78,12 +115,30 @@ export class JournalvoucherComponent implements OnInit {
 
   openVoucher(v: any) {
     if (!v || !v.VoucherID) return;
-    // Use Credit to determine receipt vs payment
+    // If this is a journal voucher (RefType == 4), open the journal editor
+    if (v.RefType == 4 || v.RefType === '4') {
+      this.router.navigateByUrl('/cash/journalvoucher/' + v.VoucherID);
+      return;
+    }
+
+    // Otherwise use Credit to determine receipt vs payment
     const amount = v.Credit || v.Debit || 0;
     if (amount > 0 && v.Credit > 0) {
       this.router.navigateByUrl('/cash/cashreceipt/' + v.VoucherID);
     } else {
       this.router.navigateByUrl('/cash/cashpayment/' + v.VoucherID);
+    }
+  }
+
+  printPreview() {
+    try {
+      // allow UI to settle
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    } catch (err) {
+      console.warn('Print preview failed', err);
+      this.alert.Error('Unable to open print preview', 'Error', 1);
     }
   }
 

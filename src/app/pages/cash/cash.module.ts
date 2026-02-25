@@ -26,6 +26,7 @@ const routes:any = [
   { path: 'expense/:EditID', component: ExpendComponent, data: { breadcrumb: 'Add Expense' } },
   { path: 'recovery', component: AddRecoveryComponent, data: { breadcrumb: 'Add Recovery' } },
   { path: 'journalvoucher', component: JournalvoucherComponent, data: { breadcrumb: 'Add Journal Voucher' } },
+  { path: 'journalvoucher/:EditID', component: JournalvoucherComponent, data: { breadcrumb: 'Edit Journal Voucher' } },
 
 ];
 

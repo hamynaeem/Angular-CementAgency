@@ -5,4 +5,5 @@ export interface TransportDetail {
   Details: string | null;
   Income: number;
   Expense: number;
+  Categories?: string[];
 }

@@ -12,11 +12,9 @@
   <div class="card-block widget-body">
     <div *ngIf="showPayments" class="payments-panel mb-3">
       <div class="card p-2">
-        <h6 class="mb-2">Recent Payments</h6>
+        <h6 class="mb-2">Recent Journal Payments</h6>
 
-        <div *ngIf="!Voucher.CustomerID && !Voucher1.CustomerID" class="text-muted mb-2">
-          Select an account to filter payments.
-        </div>
+        <!-- showing all journal payments by default -->
 
         <div *ngIf="VouchersList && VouchersList.length > 0">
           <ul class="list-group">
@@ -277,12 +275,18 @@
               </div>
             </div>
             <div class="row no-gutter">
-              <div class="form-group col-md-12">
-                <label>&nbsp;</label>
-                <button type="submit" class="btn btn-primary form-control" accesskey="s" [disabled]="!frmFilter.valid">
-                  <i class="fa fa-save"></i>
-                </button>
-              </div>
+              <div class="form-group col-md-6">
+                  <label>&nbsp;</label>
+                  <button type="submit" class="btn btn-primary form-control" accesskey="s" [disabled]="!frmFilter.valid">
+                    <i class="fa fa-save"></i> Save
+                  </button>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>&nbsp;</label>
+                  <button type="button" class="btn btn-info form-control" (click)="printPreview()">
+                    <i class="fa fa-print"></i> Print (Preview)
+                  </button>
+                </div>
             </div>
             <div class="row no-gutter"></div>
           </div>

@@ -59,7 +59,12 @@
                 <tr *ngFor="let r of reports">
                   <td>{{ r.Date }}</td>
                   <td>{{ r.TransportName || r.TransportID }}</td>
-                  <td>{{ r.Description }}</td>
+                  <td>
+                    <div>{{ r.Description }}</div>
+                    <div *ngIf="r.Categories && r.Categories.length" class="small text-muted mt-1">
+                      <span *ngFor="let c of r.Categories; let i = index" class="badge badge-light mr-1">{{ c }}</span>
+                    </div>
+                  </td>
                   <td>
                     <button class="btn btn-sm btn-outline-primary mr-1" (click)="editReport(r)">
                       <i class="fa fa-edit"></i>
@@ -152,6 +157,23 @@
                   [(ngModel)]="Voucher.Details"
                   id="description"
                 />
+              </div>
+            </div>
+            <div class="row form-group">
+              <label class="col-md-4 form-label">Categories</label>
+              <div class="col-md-8">
+                <div class="input-group mb-2">
+                  <input type="text" class="form-control" placeholder="Add category" [(ngModel)]="newCategory" name="newCategory" />
+                  <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" (click)="addCategory()">Add</button>
+                  </div>
+                </div>
+                <div *ngIf="Voucher?.Categories && Voucher.Categories.length>0">
+                  <span *ngFor="let c of Voucher.Categories; let i = index" class="badge badge-pill badge-info mr-1">
+                    {{ c }} <a href="#" (click)="removeCategory(i); $event.preventDefault();" class="text-white ml-1">&times;</a>
+                  </span>
+                </div>
+                <div *ngIf="!Voucher?.Categories || Voucher.Categories.length===0" class="text-muted small">No categories added.</div>
               </div>
             </div>
             <div class="row form-group">
