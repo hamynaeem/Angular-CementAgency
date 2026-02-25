@@ -9,6 +9,8 @@ import {
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Params, Router } from '@angular/router';
+import html2canvas from 'html2canvas';
+import * as JSPDF from 'jspdf';
 import { LocalDataSource } from 'ng2-smart-table';
 import { BsModalRef, BsModalService } from 'ngx-bootstrap/modal';
 import { ButtonsBarComponent } from '../../../../../../../libs/future-tech-lib/src/lib/components/buttons-bar/buttons-bar.component';
@@ -77,16 +79,16 @@ interface SaleDetail {
 export class BookingInvoiceComponent
   implements OnInit, OnChanges, AfterViewInit
 {
-  @Input() Type: string;
+  @Input() Type!: string;
   @Input() EditID = '';
 
   selectedProduct: any;
-  @ViewChild('fromBooking') fromBooking;
-  @ViewChild('cmbProduct') cmbProd;
-  @ViewChild('qty') elQty;
-  @ViewChild('cmbCustomers') cmbCustomers;
-  @ViewChild('btnBar') btnBar: ButtonsBarComponent;
-  @ViewChild('ordersModalTemplate') ordersModalTemplate: TemplateRef<any>;
+  @ViewChild('fromBooking') fromBooking!: any;
+  @ViewChild('cmbProduct') cmbProd!: any;
+  @ViewChild('qty') elQty!: any;
+  @ViewChild('cmbCustomers') cmbCustomers!: any;
+  @ViewChild('btnBar') btnBar!: ButtonsBarComponent;
+  @ViewChild('ordersModalTemplate') ordersModalTemplate!: TemplateRef<any>;
 
   public data = new LocalDataSource([]);
   Ino = '';
@@ -97,11 +99,11 @@ export class BookingInvoiceComponent
   // Modal reference
   modalRef?: BsModalRef;
 
-  public booking: Booking;
-  bookingDetail: BookingDetail;
+  public booking!: Booking;
+  bookingDetail!: BookingDetail;
 
-  sale: Sale;
-  saleDetail: SaleDetail;
+  sale!: Sale;
+  saleDetail!: SaleDetail;
 
   public Products: any = [];
   public SelectedProduct: any = {};
@@ -187,15 +189,15 @@ export class BookingInvoiceComponent
       Credit: 0,
     };
   }
-  ngOnChanges(changes: SimpleChanges) {}
+  ngOnChanges(_changes: SimpleChanges) {}
   ngAfterViewInit(): void {}
-  SaveData() {
+  async SaveData(navigateAfterSave: boolean = true, clearAfterSave: boolean = true): Promise<any> {
     if (!this.booking || !this.bookData.length) {
       this.myToaster.Error(
         'Booking and booking details are required.',
         'Validation Error'
       );
-      return;
+      return Promise.reject('validation:missing-data');
     }
 
     if (this.booking.BagsPurchase != this.booking.BagsSold) {
@@ -203,7 +205,7 @@ export class BookingInvoiceComponent
         'Bags Purchased and Bags Sold must be equal.',
         'Validation Error'
       );
-      return;
+      return Promise.reject('validation:bags-mismatch');
     }
 
     if (this.fromBooking.valid) {
@@ -216,34 +218,36 @@ export class BookingInvoiceComponent
 
       data.Date = JSON2Date(data.Date);
 
-      this.http
-        .postTask(
-          'booking' + (this.EditID != '' ? '/' + this.EditID : ''),
-          data
-        )
-        .then((r) => {
-          console.log(r);
+      try {
+        const r = await this.http
+          .postTask('booking' + (this.EditID != '' ? '/' + this.EditID : ''), data);
+        console.log(r);
 
-          this.myToaster.Sucess('Booking saved successfully.', 'Success');
+        this.myToaster.Sucess('Booking saved successfully.', 'Success');
+        // Only clear UI and navigate when requested. For PDF download we
+        // want to save on server but keep the current UI so we can render it.
+        if (clearAfterSave) {
           this.saleData = [];
           this.bookData = [];
           this.calcBooking();
           this.calcSaleData();
           this.Cancel();
           this.EditID = '';
+        }
+        if (navigateAfterSave) {
           this.router.navigateByUrl('/purchase/booking');
-          // Optionally navigate to the booking details page
-          // this.router.navigate(['/purchase/booking', r.BookingID]);
-
-        })
-        .catch((err) => {
-          this.myToaster.Error('Failed to save booking.', 'Error');
-        });
+        }
+        return r;
+      } catch (err) {
+        this.myToaster.Error('Failed to save booking.', 'Error');
+        return Promise.reject(err);
+      }
     } else {
       this.myToaster.Error(
         'Please fill all required fields.',
         'Validation Error'
       );
+      return Promise.reject('validation:invalid-form');
     }
   }
 
@@ -279,7 +283,24 @@ export class BookingInvoiceComponent
     this.bookingDetail.ProductID = undefined;
     this.bookingDetail.Qty = 0;
     this.bookingDetail.Price = 0;
-    this.cmbProd.focus();
+    // Safely focus the product select if available. Different select implementations
+    // expose different APIs (`focus`, `focusIn`, or `nativeElement.focus`).
+    if (this.cmbProd) {
+      try {
+        if (typeof this.cmbProd.focus === 'function') {
+          this.cmbProd.focus();
+        } else if (typeof this.cmbProd.focusIn === 'function') {
+          this.cmbProd.focusIn();
+        } else if (
+          this.cmbProd.nativeElement &&
+          typeof this.cmbProd.nativeElement.focus === 'function'
+        ) {
+          setTimeout(() => this.cmbProd.nativeElement.focus(), 0);
+        }
+      } catch (e) {
+        console.warn('Could not focus cmbProd', e);
+      }
+    }
   }
   removeItem() {
     if (this.bookData.length > 0) {
@@ -344,8 +365,22 @@ export class BookingInvoiceComponent
     }
     this.saleData.push(saleItem);
     this.calcSaleData();
-    if (this.cmbCustomers && this.cmbCustomers.nativeElement) {
-      this.cmbCustomers.nativeElement.focus();
+    // Safely focus the customer select if available
+    if (this.cmbCustomers) {
+      try {
+        if (typeof this.cmbCustomers.focus === 'function') {
+          this.cmbCustomers.focus();
+        } else if (typeof this.cmbCustomers.focusIn === 'function') {
+          this.cmbCustomers.focusIn();
+        } else if (
+          this.cmbCustomers.nativeElement &&
+          typeof this.cmbCustomers.nativeElement.focus === 'function'
+        ) {
+          setTimeout(() => this.cmbCustomers.nativeElement.focus(), 0);
+        }
+      } catch (e) {
+        console.warn('Could not focus cmbCustomers', e);
+      }
     }
     this.saleDetail.ProductID = undefined;
     this.saleDetail.Qty = 0;
@@ -376,8 +411,56 @@ export class BookingInvoiceComponent
     );
   }
   saveAndPrint() {
-    this.SaveData();
-    window.print();
+    // Save but don't clear/navigate so the UI remains visible for printing.
+    this.SaveData(false, false)
+      .then(() => {
+        setTimeout(() => {
+          window.print();
+          // After printing, clear and navigate back to list
+          setTimeout(() => {
+            this.saleData = [];
+            this.bookData = [];
+            this.calcBooking();
+            this.calcSaleData();
+            this.Cancel();
+            this.EditID = '';
+            this.router.navigateByUrl('/purchase/booking');
+          }, 600);
+        }, 200);
+      })
+      .catch((err) => {
+        console.warn('Save before print failed or cancelled:', err);
+      });
+  }
+
+  downloadPdf() {
+    // Save current data but don't navigate away, then render the visible
+    // booking form to PDF and download it.
+    this.SaveData(false, false)
+      .then((r: any) => {
+        setTimeout(() => {
+          const data: any = document.getElementById('print-section');
+          if (!data) {
+            this.myToaster.Error('Print section not found', 'Error');
+            return;
+          }
+          html2canvas(data).then((canvas) => {
+            const imgWidth = 208;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            const contentDataURL = canvas.toDataURL('image/png');
+            const pdf = new JSPDF.jsPDF('p', 'mm', 'a4');
+            let position = 0;
+            pdf.addImage(contentDataURL, 'PNG', 0, position, imgWidth, imgHeight);
+            const idPart = r && (r.BookingID || r.id) ? '-' + (r.BookingID || r.id) : '';
+            const fileName = 'Booking' + idPart + '.pdf';
+            pdf.save(fileName);
+          });
+        }, 300);
+      })
+      .catch((err) => {
+        console.warn('Save before PDF failed or cancelled:', err);
+        this.myToaster.Error('Failed to save booking; PDF not generated', 'Error');
+      });
   }
   LoadInvoice() {
     if (this.EditID == '') {
@@ -417,7 +500,7 @@ export class BookingInvoiceComponent
       }
     });
   }
-  deleteSaleItem(idx){
+  deleteSaleItem(idx: number){
     this.saleData.splice(idx, 1);
     this.calcSaleData();
   }
@@ -461,13 +544,13 @@ export class BookingInvoiceComponent
       this.saleDetail.Amount = order.Total;
 
       // Find and set the customer name for display
-      const selectedCustomer = this.Customers.find(c => c.CustomerID == order.CustomerID);
+      const selectedCustomer = this.Customers.find((c: any) => c.CustomerID == order.CustomerID);
       if (selectedCustomer) {
         this.saleDetail.CustomerName = selectedCustomer.CustomerName;
       }
 
       // Find and set the product name for display
-      const selectedProduct = this.Products.find(p => p.ProductID == order.ProductID);
+      const selectedProduct = this.Products.find((p: any) => p.ProductID == order.ProductID);
       if (selectedProduct) {
         this.saleDetail.ProductName = selectedProduct.ProductName;
       }

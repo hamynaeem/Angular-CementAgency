@@ -41,8 +41,12 @@ export class CreditlistComponent implements OnInit {
         fldName: 'City',
       },
       {
-        label: 'Cnic',
+        label: 'CNIC',
         fldName: 'Cnic',
+      },
+      {
+        label: 'NTN',
+        fldName: 'Ntn',
       },
       {
         label: 'Phone No',
@@ -91,15 +95,18 @@ export class CreditlistComponent implements OnInit {
     if (this.Filter.Balance) filter += ' and Balance >=' + this.Filter.Balance
 
     // request the actual view columns and alias them to the field names used by the table
-    this.http.getData('qrycustomers?flds=CustomerID,CustomerName, Address, City, CNICNo as Cnic, PhoneNo as PhoneNo1, Balance as Balance&filter=' + filter).then((r: any) => {
+    // include NTNNo so we can display customer's NTN as well
+    this.http.getData('qrycustomers?flds=CustomerID,CustomerName, Address, City, CNICNo as Cnic, NTNNo as Ntn, PhoneNo as PhoneNo1, Balance as Balance&filter=' + filter).then((r: any) => {
       // normalize incoming data to ensure `Cnic` and `PhoneNo1` are populated
       if (Array.isArray(r)) {
         r = r.map((it: any) => {
           // try several possible property names that may come from different DB views
           it.Cnic = it.Cnic || it.CNICNo || it.CNIC || it.CnicNo || it.CNIC_No || '';
+          it.Ntn = it.Ntn || it.NTNNo || it.NTN || it.NtnNo || it.NTN_No || '';
           it.PhoneNo1 = it.PhoneNo1 || it.PhoneNo || it.Phone || it.PhoneNo_1 || '';
           // trim whitespace
           if (typeof it.Cnic === 'string') it.Cnic = it.Cnic.trim();
+          if (typeof it.Ntn === 'string') it.Ntn = it.Ntn.trim();
           if (typeof it.PhoneNo1 === 'string') it.PhoneNo1 = it.PhoneNo1.trim();
           return it;
         });

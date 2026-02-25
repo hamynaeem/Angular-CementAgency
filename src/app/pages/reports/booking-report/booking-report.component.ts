@@ -13,7 +13,7 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./booking-report.component.scss'],
 })
 export class BookingReportComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable!: any;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -22,7 +22,7 @@ export class BookingReportComponent implements OnInit {
     RouteID: '',
   };
 
-  public data: object[];
+  public data: object[] = [];
 
   setting = {
     Checkbox: false,
@@ -140,28 +140,28 @@ export class BookingReportComponent implements OnInit {
 
         {
             // Purchase type
-            condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) => subRow.Type === 'Purchase',
+            condition: (subRow: any) => subRow.Type === 'Purchase',
             color: '#ffcccc', // light red
             priority: 10
           },
           {
           // Sale type
-          condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) => subRow.Type === 'Sale',
+          condition: (subRow: any) => subRow.Type === 'Sale',
           color: 'lightgreen',
           priority: 5
         }
       ],
       // Fallback single condition (optional, for backward compatibility)
-      condition: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) =>
+      condition: (subRow: any) =>
         subRow.Type === 'Purchase' || subRow.Type === 'Sale',
-      color: (subRow: any, subIndex: number, parentRow: any, parentIndex: number) =>
+      color: (subRow: any) =>
         subRow.Type === 'Purchase' ? 'red' : 'lightgreen',
       // Default color if no condition matches
       defaultColor: 'white'
     }
   };
 
-  public toolbarOptions: object[];
+  public toolbarOptions: object[] = [];
   constructor(
     private http: HttpBase,
     private ps: PrintDataService,
@@ -202,14 +202,14 @@ export class BookingReportComponent implements OnInit {
       });
     });
   }
-  Clicked(e) {
+  Clicked(e: any) {
     console.log(e);
     if (e.action === 'print') {
       this.router.navigateByUrl('/print/printinvoice/' + e.data.InvoiceID);
     }
   }
 
-  RowClicked(event) {
+  RowClicked(event: any) {
     console.log(event);
     if (event.data.details.length == 0) {
       this.http

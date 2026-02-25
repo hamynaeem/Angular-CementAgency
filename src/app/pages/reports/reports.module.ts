@@ -21,7 +21,6 @@ import { PurchaseReportComponent } from './purchase-report/purchase-report.compo
 import { RecoveryReportComponent } from './recovery-report/recovery-report.component';
 import { StockAcctsComponent } from './stock-accts/stock-accts.component';
 import { StockReportComponent } from './stock-report/stock-report.component';
-//import { ComponentsModule } from '../components/components.module';
 import { NgSelectModule } from '@ng-select/ng-select';
 import { FutureTechLibModule } from '../../../../../../libs/future-tech-lib/src';
 import { BookingReportComponent } from './booking-report/booking-report.component';
@@ -74,6 +73,8 @@ const routes:any= [
   { path: 'gatepass-pending', component: GatepasPendingComponent, data: { breadcrumb: 'Purchase Ledger' } },
   { path: 'short-stock', component: ShortStockComponent, data: { breadcrumb: 'Purchase Ledger' } },
   { path: 'booking', component: BookingReportComponent, data: { breadcrumb: 'Booking Report' } },
+  { path: 'salesummary', component: SalesummaryComponent, data: { breadcrumb: 'Sale Summary' } },
+  { path: 'purchasesummary', component: PurchasesummaryComponent, data: { breadcrumb: 'Purchase Summary' } },
 
 
 ];

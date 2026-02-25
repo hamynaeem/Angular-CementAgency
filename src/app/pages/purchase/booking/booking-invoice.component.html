@@ -1,4 +1,4 @@
-<div widget class="card border-0 box-shadow">
+<div id="print-section" widget class="card border-0 box-shadow">
   <div class="card-header transparent border-0 text-muted">
     <div class="row no-pad">
       <div class="col-md-4">
@@ -161,6 +161,7 @@
             <div class="col-md-12">
               <label for="product">Product:</label>
               <ng-select
+                #cmbProduct
                 [items]="Products"
                 bindLabel="ProductName"
                 bindValue="ProductID"
@@ -288,6 +289,7 @@
             <div class="col-md-12">
               <label for="customer">Customer:</label>
               <ng-select
+                #cmbCustomers
                 [items]="Customers"
                 bindLabel="CustomerName"
                 bindValue="CustomerID"
@@ -490,6 +492,15 @@
             (click)="saveAndPrint()"
           >
             <i class="fa fa-print"></i> Save and Print
+          </button>
+        </div>
+        <div class="col-md-2">
+          <button
+            type="button"
+            class="btn btn-secondary btn-block"
+            (click)="downloadPdf()"
+          >
+            <i class="fa fa-download"></i> Download PDF
           </button>
         </div>
         <div class="col-md-2">

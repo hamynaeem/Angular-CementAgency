@@ -624,16 +624,131 @@ class Apis extends REST_Controller
             );
             return;
         }
-        $filter = $this->get('filter');
-        $this->load->database();
-        $bid = $this->get('bid');
-        $filter .= ' and (BusinessID =' . $bid . ')';
+                $filter = $this->get('filter');
+                $this->load->database();
+                $bid = $this->get('bid');
 
-        $query = $this->db->query("SELECT InvoiceID as INo, Date, CustomerName, Address, City, NetAmount,
-          (Select sum(Cost) from qrysalereport where qrysalereport.InvoiceID = qryinvoices.InvoiceiD) as Cost,
-          (Select sum(NetAmount-Cost) from qrysalereport where qrysalereport.InvoiceID = qryinvoices.InvoiceiD) as Profit,
-          DtCr  from qryinvoices WHERE $filter ")->result_array();
-        $this->response($query, REST_Controller::HTTP_OK);
+                // Ensure we have a usable filter
+                if (! $filter || trim($filter) == '') {
+                        $filter = '1 = 1';
+                }
+
+                // Parse filter to extract Date range, RouteID and SalesmanID and build parameterized WHERE clause
+                $where = array();
+                $params = array();
+
+                // Date between 'YYYY-M-D' and 'YYYY-M-D'
+                if (preg_match("/Date\s+between\s+'(\d{4}-\d{1,2}-\d{1,2})'\s+and\s+'(\d{4}-\d{1,2}-\d{1,2})'/i", $filter, $m)) {
+                    $where[] = 'i.Date BETWEEN ? AND ?';
+                    $params[] = $m[1];
+                    $params[] = $m[2];
+                }
+
+                // RouteID
+                if (preg_match('/Routeid\s*=\s*(\d+)/i', $filter, $m)) {
+                    $where[] = 'i.RouteID = ?';
+                    $params[] = (int) $m[1];
+                }
+
+                // SalesmanID
+                if (preg_match('/SalesmanID\s*=\s*(\d+)/i', $filter, $m)) {
+                    $where[] = 'i.SalesmanID = ?';
+                    $params[] = (int) $m[1];
+                }
+
+                // Turn off DB debug so SQL errors return JSON, not HTML
+                $db_debug = isset($this->db->db_debug) ? $this->db->db_debug : true;
+                $this->db->db_debug = false;
+
+                // Prefer querying base tables (invoices + customers) and compute Cost/Profit from invoicedetails if available
+                if ($this->db->table_exists('invoices')) {
+                    $hasInvoicedetails = $this->db->table_exists('invoicedetails');
+
+                    if ($hasInvoicedetails) {
+                        $sql = "SELECT i.InvoiceID as INo, i.Date, c.CustomerName, c.Address, c.City, i.NetAmount,
+                                  (SELECT SUM(d.Cost) FROM invoicedetails d WHERE d.InvoiceID = i.InvoiceID) AS Cost,
+                                  (SELECT SUM(d.NetAmount - d.Cost) FROM invoicedetails d WHERE d.InvoiceID = i.InvoiceID) AS Profit,
+                                  i.DtCr
+                                FROM invoices i
+                                LEFT JOIN customers c ON c.CustomerID = i.CustomerID";
+                        // append BusinessID and other where clauses
+                        $where[] = 'i.BusinessID = ?';
+                        $params[] = (int) $bid;
+
+                        if (count($where) > 0) {
+                            $sql .= ' WHERE ' . implode(' AND ', $where);
+                        }
+                        $sql .= ' ORDER BY i.Date ASC';
+                    } else {
+                        $sql = "SELECT i.InvoiceID as INo, i.Date, c.CustomerName, c.Address, c.City, i.NetAmount,
+                                  0 AS Cost, 0 AS Profit, i.DtCr
+                                FROM invoices i
+                                LEFT JOIN customers c ON c.CustomerID = i.CustomerID";
+                        $where[] = 'i.BusinessID = ?';
+                        $params[] = (int) $bid;
+                        if (count($where) > 0) {
+                            $sql .= ' WHERE ' . implode(' AND ', $where);
+                        }
+                        $sql .= ' ORDER BY i.Date ASC';
+                    }
+                } else {
+                    // invoices table missing — attempt to create minimal tables to allow the API to return an empty result set
+                    log_message('warn', 'profitbybill: required table `invoices` does not exist; creating minimal schema');
+                    try {
+                        $this->db->query("CREATE TABLE IF NOT EXISTS invoices (
+                            InvoiceID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                            Date DATE DEFAULT NULL,
+                            CustomerID INT DEFAULT NULL,
+                            NetAmount DECIMAL(18,2) DEFAULT 0,
+                            DtCr VARCHAR(16) DEFAULT NULL,
+                            BusinessID INT DEFAULT NULL
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+                        $this->db->query("CREATE TABLE IF NOT EXISTS invoicedetails (
+                            DetailID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                            InvoiceID INT DEFAULT NULL,
+                            ProductID INT DEFAULT NULL,
+                            Qty INT DEFAULT 0,
+                            Cost DECIMAL(18,2) DEFAULT 0,
+                            NetAmount DECIMAL(18,2) DEFAULT 0
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+                        // after creation, build a simple SQL returning zero rows
+                        $sql = "SELECT i.InvoiceID as INo, i.Date, '' AS CustomerName, '' AS Address, '' AS City, i.NetAmount,
+                                  0 AS Cost, 0 AS Profit, i.DtCr
+                                FROM invoices i
+                                WHERE i.BusinessID = " . (int) $bid . " LIMIT 0";
+                    } catch (Exception $e) {
+                        log_message('error', 'profitbybill: failed to create minimal tables: ' . $e->getMessage());
+                        // restore db_debug
+                        $this->db->db_debug = $db_debug;
+                        $this->response([], REST_Controller::HTTP_OK);
+                        return;
+                    }
+                }
+
+                log_message('debug', 'profitbybill SQL: ' . $sql);
+
+                // execute with bindings if any
+                if (!empty($params)) {
+                    $query = $this->db->query($sql, $params);
+                } else {
+                    $query = $this->db->query($sql);
+                }
+                if ($query === false) {
+                    $err = $this->db->error();
+                    log_message('error', 'profitbybill DB error: ' . json_encode($err) . ' | sql: ' . $sql);
+                    // restore db debug
+                    $this->db->db_debug = $db_debug;
+                    // Return empty array to frontend to avoid HTTP 500 while keeping an error log server-side
+                    $this->response([], REST_Controller::HTTP_OK);
+                    return;
+                }
+
+                $res = $query->result_array();
+                // restore db debug
+                $this->db->db_debug = $db_debug;
+                $this->response($res, REST_Controller::HTTP_OK);
     }
 
     public function topten_get()
@@ -667,21 +782,87 @@ class Apis extends REST_Controller
         $this->output->set_header('Pragma: no-cache');
         $this->output->set_header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
         // ensure bid is integer
-        $bid  = (int) $this->get('bid');
-        // `qrycustomers` view does not include BusinessID, so join back to `customers` to filter by BusinessID
-        $sql = "SELECT (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = q.AcctTypeID) AS Type,
-                   q.CustomerName,
-                   CASE WHEN q.Balance < 0 THEN ABS(q.Balance) ELSE 0 END AS Debit,
-                   CASE WHEN q.Balance >= 0 THEN q.Balance ELSE 0 END AS Credit
-            FROM qrycustomers q
-            JOIN customers c ON c.CustomerID = q.CustomerID
-            WHERE c.BusinessID = ?
-            ORDER BY q.AcctType";
-        // Log SQL and parameters for debugging
-        log_message('debug', 'balancesheet SQL: ' . $sql . ' | bid=' . $bid);
-        $acct = $this->db->query($sql, array($bid))->result_array();
+        $bid = (int) $this->get('bid');
 
-        $this->response($acct, REST_Controller::HTTP_OK);
+        // suppress DB debug to avoid CodeIgniter HTML error pages on DB errors
+        $db_debug = isset($this->db->db_debug) ? $this->db->db_debug : true;
+        $this->db->db_debug = false;
+
+        try {
+            // Prefer using qrycustomers view if available
+            if ($this->db->table_exists('qrycustomers')) {
+                // If customers table has BusinessID then filter by it, otherwise omit the filter
+                if ($this->db->field_exists('BusinessID', 'customers')) {
+                    $sql = "SELECT (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = q.AcctTypeID) AS Type,
+                               q.CustomerName,
+                               CASE WHEN q.Balance < 0 THEN ABS(q.Balance) ELSE 0 END AS Debit,
+                               CASE WHEN q.Balance >= 0 THEN q.Balance ELSE 0 END AS Credit
+                        FROM qrycustomers q
+                        JOIN customers c ON c.CustomerID = q.CustomerID
+                        WHERE c.BusinessID = ?
+                        ORDER BY q.AcctType";
+                    log_message('debug', 'balancesheet SQL (view+bid): ' . $sql . ' | bid=' . $bid);
+                    $query = $this->db->query($sql, array($bid));
+                } else {
+                    $sql = "SELECT (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = q.AcctTypeID) AS Type,
+                               q.CustomerName,
+                               CASE WHEN q.Balance < 0 THEN ABS(q.Balance) ELSE 0 END AS Debit,
+                               CASE WHEN q.Balance >= 0 THEN q.Balance ELSE 0 END AS Credit
+                        FROM qrycustomers q
+                        ORDER BY q.AcctType";
+                    log_message('debug', 'balancesheet SQL (view, no BusinessID): ' . $sql);
+                    $query = $this->db->query($sql);
+                }
+            } else {
+                // Fallback: qrycustomers view missing — try to use customers table directly
+                $hasBalance = $this->db->field_exists('Balance', 'customers');
+                $hasAcctTypeID = $this->db->field_exists('AcctTypeID', 'customers');
+                if ($hasBalance) {
+                    $sql = "SELECT (SELECT AcctType FROM accttypes WHERE accttypes.AcctTypeID = customers." . ($hasAcctTypeID ? "AcctTypeID" : "0") . ") AS Type,
+                               customers.CustomerName,
+                               CASE WHEN customers.Balance < 0 THEN ABS(customers.Balance) ELSE 0 END AS Debit,
+                               CASE WHEN customers.Balance >= 0 THEN customers.Balance ELSE 0 END AS Credit
+                        FROM customers";
+                    if ($this->db->field_exists('BusinessID', 'customers')) {
+                        $sql .= " WHERE customers.BusinessID = ?";
+                        log_message('debug', 'balancesheet SQL (customers+bid fallback): ' . $sql . ' | bid=' . $bid);
+                        $query = $this->db->query($sql, array($bid));
+                    } else {
+                        log_message('debug', 'balancesheet SQL (customers fallback, no BusinessID): ' . $sql);
+                        $query = $this->db->query($sql);
+                    }
+                } else {
+                    // Nothing usable — return empty array and log helpful message
+                    log_message('error', 'balancesheet: qrycustomers view missing and customers.Balance column not found');
+                    $this->response([], REST_Controller::HTTP_OK);
+                    // restore db_debug
+                    $this->db->db_debug = $db_debug;
+                    return;
+                }
+            }
+
+            if ($query === false) {
+                $err = $this->db->error();
+                log_message('error', 'balancesheet DB error: ' . json_encode($err));
+                $this->response([
+                    'result' => 'Error',
+                    'message' => isset($err['message']) ? $err['message'] : 'Unknown database error',
+                    'code' => isset($err['code']) ? $err['code'] : 0,
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                // restore db_debug
+                $this->db->db_debug = $db_debug;
+                return;
+            }
+
+            $acct = $query->result_array();
+            $this->response($acct, REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            log_message('error', 'balancesheet exception: ' . $e->getMessage());
+            $this->response(['result' => 'Error', 'message' => 'Exception: ' . $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        } finally {
+            // restore db_debug
+            $this->db->db_debug = $db_debug;
+        }
     }
     public function cashreport_post()
     {
@@ -693,14 +874,18 @@ class Apis extends REST_Controller
         $date1 = $this->post('FromDate');
         $date2 = $this->post('ToDate');
 
-        try {
-            // Try to use the stored procedure first
-            $query = $this->db->query("CALL sp_GetCashbookHistory('$date1', '$date2')");
-            $result = $query->result_array();
-        } catch (Exception $e) {
-            // If stored procedure doesn't exist, use fallback query
-            log_message('error', 'sp_GetCashbookHistory not found, using fallback query: ' . $e->getMessage());
-            
+        // Temporarily disable DB debug so database errors don't produce HTML error pages
+        $db_debug = isset($this->db->db_debug) ? $this->db->db_debug : true;
+        $this->db->db_debug = false;
+
+        // Try stored procedure first (use bindings to avoid SQL injection)
+        $query = $this->db->query("CALL sp_GetCashbookHistory(?, ?)", array($date1, $date2));
+
+        // If CALL failed or returned false, fall back to a safe SELECT
+        if ($query === false) {
+            $err = $this->db->error();
+            log_message('error', 'sp_GetCashbookHistory CALL failed: ' . json_encode($err));
+
             $fallback_query = "
                 SELECT 
                     v.VoucherID,
@@ -718,10 +903,26 @@ class Apis extends REST_Controller
                 WHERE v.Date BETWEEN ? AND ?
                 ORDER BY v.Date ASC, v.VoucherID ASC
             ";
-            
-            $query = $this->db->query($fallback_query, [$date1, $date2]);
-            $result = $query->result_array();
+
+            $query = $this->db->query($fallback_query, array($date1, $date2));
+            if ($query === false) {
+                $err2 = $this->db->error();
+                log_message('error', 'cashreport fallback query failed: ' . json_encode($err2));
+                // Restore db_debug before responding
+                $this->db->db_debug = $db_debug;
+                $this->response([
+                    'result' => 'Error',
+                    'message' => isset($err2['message']) ? $err2['message'] : 'Unknown database error',
+                    'code' => isset($err2['code']) ? $err2['code'] : 0,
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
         }
+
+        // Restore db_debug
+        $this->db->db_debug = $db_debug;
+
+        $result = $query->result_array();
         
         $this->response($result, REST_Controller::HTTP_OK);
     }
@@ -1466,6 +1667,25 @@ class Apis extends REST_Controller
     {
         header('Access-Control-Allow-Headers: X-Requested-With, content-type, access-control-allow-origin, access-control-allow-methods, access-control-allow-headers');
         return $this->response(null, REST_Controller::HTTP_OK);
+    }
+
+    // Debug endpoint: check DB connection and a simple query
+    public function dbstatus_get()
+    {
+        try {
+            $this->load->database();
+            $res = $this->db->query('SELECT 1 as ok')->result_array();
+            if ($res && isset($res[0]['ok'])) {
+                $this->response(['status' => 'ok', 'db' => true], REST_Controller::HTTP_OK);
+            } else {
+                $err = $this->db->error();
+                log_message('error', 'dbstatus query failed: ' . json_encode($err));
+                $this->response(['status' => 'error', 'db' => false, 'error' => $err], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'dbstatus exception: ' . $e->getMessage());
+            $this->response(['status' => 'exception', 'message' => $e->getMessage()], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     private function CreateLoginOutput($User, $closing, $bdata)

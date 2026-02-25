@@ -18,3 +18,19 @@ POST DATA: Array
     [ProductName] => test1
 )
 
+[2026-02-24T12:22:44+05:00] vouchers insert failed: {"code":1415,"message":"Not allowed to return a result set from a trigger"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Save from run_post_voucher.ps1","Debit":0,"Credit":100,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":0,"BusinessID":1}
+[2026-02-24T12:23:03+05:00] vouchers insert failed: {"code":1415,"message":"Not allowed to return a result set from a trigger"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Save from run_post_voucher.ps1","Debit":0,"Credit":100,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":0,"BusinessID":1}
+[2026-02-24T12:23:07+05:00] vouchers insert failed: {"code":1415,"message":"Not allowed to return a result set from a trigger"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Description","Debit":0,"Credit":5656,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":1,"BusinessID":1}
+[2026-02-24T12:28:38+05:00] vouchers insert failed: {"code":1062,"message":"Duplicate entry '0' for key 'PRIMARY'"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Description","Debit":0,"Credit":5656,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":1,"BusinessID":1}
+[2026-02-24T12:28:45+05:00] vouchers insert failed: {"code":1062,"message":"Duplicate entry '0' for key 'PRIMARY'"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Description","Debit":0,"Credit":5656,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":1,"BusinessID":1}
+[2026-02-24T12:29:01+05:00] vouchers insert failed: {"code":1062,"message":"Duplicate entry '0' for key 'PRIMARY'"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Description","Debit":0,"Credit":565656,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":1,"BusinessID":1}
+[2026-02-24T12:30:00+05:00] vouchers insert failed: {"code":1062,"message":"Duplicate entry '0' for key 'PRIMARY'"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Save from run_post_voucher.ps1","Debit":0,"Credit":100,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":0,"BusinessID":1}
+[2026-02-24T12:30:18+05:00] vouchers insert failed: {"code":1062,"message":"Duplicate entry '0' for key 'PRIMARY'"}
+Data: {"Date":"2025-09-22","CustomerID":268,"Description":"Save from run_post_voucher.ps1","Debit":0,"Credit":100,"RefID":"0","IsPosted":0,"FinYearID":1,"RefType":0,"BusinessID":1}

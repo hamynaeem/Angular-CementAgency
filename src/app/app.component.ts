@@ -13,7 +13,7 @@ import { AppName } from './config/constants';
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
-  subscription: Subscription;
+  subscription!: Subscription;
   public routes: RouteInfo[] = ROUTES;
 
   constructor(private router: Router,
@@ -32,7 +32,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
       var rt = this.getChild(this.activatedRoute)
 
-      rt.data.subscribe(data => {
+      rt.data.subscribe((data: any) => {
         this.titleService.setTitle( AppName + " :: " + data.breadcrumb)})
     })
 
@@ -40,13 +40,12 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe(() => window.scrollTo(0, 0));
   }
-  getChild(activatedRoute: ActivatedRoute) {
+  getChild(activatedRoute: ActivatedRoute): ActivatedRoute {
     if (activatedRoute.firstChild) {
       return this.getChild(activatedRoute.firstChild);
     } else {
       return activatedRoute;
     }
-
   }
 
   ngOnDestroy() {

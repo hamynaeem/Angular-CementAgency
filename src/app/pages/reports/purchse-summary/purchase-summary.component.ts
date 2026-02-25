@@ -16,7 +16,7 @@ import { MyToastService } from '../../../services/toaster.server';
   styleUrls: ['./purchase-summary.component.scss'],
 })
 export class PurchasesummaryComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable: any;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -45,7 +45,7 @@ export class PurchasesummaryComponent implements OnInit {
         label: 'Amount',
         fldName: 'Amount',
         sum: true,
-        valueFormatter: (d) => {
+        valueFormatter: (d: any) => {
           return formatNumber(d['Amount']);
         },
       },
@@ -54,17 +54,18 @@ export class PurchasesummaryComponent implements OnInit {
     Data: [],
   };
 
-  public data: object[];
-  public Items: any = this.cachedData.Products$;
+  public data!: object[];
+  public Items: any;
+
   constructor(
     private http: HttpBase,
     private cachedData: CachedDataService,
     private ps: PrintDataService,
-    private myToaster: MyToastService,
     private router: Router
   ) {}
 
   ngOnInit() {
+    this.Items = this.cachedData.Products$;
     this.FilterData();
   }
   PrintReport() {
@@ -92,7 +93,7 @@ export class PurchasesummaryComponent implements OnInit {
 
       this.http
         .getData(
-          'qrypurchasereport?flds=StoreName,ProductName,SPrice,sum(TotKGs) as Qty, sum(Amount) as Amount&groupby=StoreName,ProductName,SPrice&filter=' +
+          'qrypurchasereport?flds=ProductName,PPrice, Qty, Amount&filter=' +
             filter
         )
         .then((r: any) => {

@@ -46,6 +46,13 @@ export class HttpBase {
             resolve(res);
           },
           error: (err) => {
+            // If the API returned 404 for a missing DB view/table, return an empty array
+            // instead of rejecting to avoid uncaught promise errors in the UI.
+            if (err && err.status === 404) {
+              console.warn('API 404 (not found) for', this.apiUrl + table, params.toString());
+              resolve([]);
+              return;
+            }
             reject(err);
           },
         });

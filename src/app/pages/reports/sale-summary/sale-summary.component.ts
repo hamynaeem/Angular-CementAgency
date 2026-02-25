@@ -16,7 +16,7 @@ import { MyToastService } from '../../../services/toaster.server';
   styleUrls: ['./sale-summary.component.scss'],
 })
 export class SalesummaryComponent implements OnInit {
-  @ViewChild('RptTable') RptTable;
+  @ViewChild('RptTable') RptTable: any;
 
   public Filter = {
     FromDate: GetDateJSON(),
@@ -25,7 +25,6 @@ export class SalesummaryComponent implements OnInit {
   };
   setting = {
     Checkbox: false,
-    GroupBy: 'StoreName',
     Columns: [
       {
         label: 'Product Name',
@@ -45,7 +44,7 @@ export class SalesummaryComponent implements OnInit {
         label: 'Amount',
         fldName: 'Amount',
         sum: true,
-        valueFormatter: (d) => {
+        valueFormatter: (d: any) => {
           return formatNumber(d['Amount']);
         },
       },
@@ -54,17 +53,17 @@ export class SalesummaryComponent implements OnInit {
     Data: [],
   };
   sting = this.setting;
-  public data: object[];
-  public Items: any = this.cachedData.Products$;
+  public data: object[] = [];
+  public Items: any;
   constructor(
     private http: HttpBase,
     private cachedData: CachedDataService,
     private ps: PrintDataService,
-    private myToaster: MyToastService,
     private router: Router
   ) {}
 
   ngOnInit() {
+    this.Items = this.cachedData.Products$;
     this.FilterData();
   }
   PrintReport() {
@@ -93,8 +92,7 @@ export class SalesummaryComponent implements OnInit {
       this.http
         .getData(
           'qrysalereport?flds=InvoiceID,ProductName,SPrice,' +
-            'sum(TotKGs) as Qty, sum(Amount) as Amount&groupby=InvoiceID,StoreName,' +
-            'ProductName,SPrice&filter=' +
+            'Qty as Qty, Amount as Amount&filter=' +
             filter
         )
         .then((r: any) => {
@@ -108,8 +106,8 @@ export class SalesummaryComponent implements OnInit {
     } else {
       this.http
         .getData(
-          'qrysalereport?flds=StoreName,ProductName,SPrice,sum(TotKGs) as Qty, ' +
-            'sum(Amount) as Amount&groupby=StoreName,ProductName,SPrice&filter=' +
+          'qrysalereport?flds=ProductName,SPrice,Qty as Qty, ' +
+            'Amount as Amount&filter=' +
             filter
         )
         .then((r: any) => {

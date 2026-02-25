@@ -31,10 +31,10 @@ export class SaleLedgerComponent implements OnInit {
         label: 'Booking No',
         fldName: 'BookingID',
       },
-      {
-        label: 'Customer Name',
-        fldName: 'CustomerName',
-      },
+      // {
+      //   label: 'Customer Name',
+      //   fldName: 'CustomerName',
+      // },
       {
         label: 'Product Name',
         fldName: 'ProductName',

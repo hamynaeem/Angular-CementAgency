@@ -32,10 +32,10 @@ export class PurchaseLedgerComponent implements OnInit {
         label: 'Bill No',
         fldName: 'BookingID',
       },
-      {
-        label: 'Customer Name',
-        fldName: 'CustomerName',
-      },
+      // {
+      //   label: 'Customer Name',
+      //   fldName: 'CustomerName',
+      // },
       {
         label: 'Product Name',
         fldName: 'ProductName',

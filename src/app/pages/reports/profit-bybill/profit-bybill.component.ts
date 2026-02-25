@@ -24,7 +24,12 @@ export class ProfitByBillComponent implements OnInit {
   public data: object[] = [];
 
 
-  setting = {
+  setting: {
+    Checkbox: boolean,
+    Columns: Array<{ label: string; fldName: string; sum?: boolean }>,
+    Actions: any[],
+    Data: object[]
+  } = {
     Checkbox: false,
     Columns: [
       {
@@ -111,9 +116,27 @@ export class ProfitByBillComponent implements OnInit {
       if (this.Filter.RouteID && this.Filter.RouteID != '') filter += " and Routeid = " + this.Filter.RouteID
       if (this.Filter.SalesmanID && this.Filter.SalesmanID != '') filter += " and SalesmanID = " + this.Filter.SalesmanID
 
-    this.http.getData('profitbybill?filter=' + filter).then((r: any) => {
-      this.data = r;
-    });
+    console.debug('ProfitByBill: request filter ->', filter);
+    // pass filter as params to ensure proper URL-encoding
+    this.http
+      .getData('profitbybill', { filter: filter })
+      .then((r: any) => {
+        console.debug('ProfitByBill: response ->', r);
+        // normalize response: some endpoints return array, others { data: [...] }
+        if (Array.isArray(r)) {
+          this.data = r;
+        } else if (r && Array.isArray(r.data)) {
+          this.data = r.data;
+        } else {
+          this.data = [];
+        }
+        this.setting.Data = this.data;
+      })
+      .catch((err: any) => {
+        this.data = [];
+        this.setting.Data = [];
+        console.error('profitbybill error', err);
+      });
   }
   Clicked(e: any) {
     console.log(e);

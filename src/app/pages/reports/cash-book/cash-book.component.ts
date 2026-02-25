@@ -59,7 +59,23 @@ export class CashBookComponent implements OnInit {
         ToDate: JSON2Date(this.Filter.Date),
       })
       .then((r: any) => {
-        this.data = r;
+        // Map backend response to the table's expected field names
+        let running = parseFloat(this.open_balance as any) || 0;
+        const mapped = (r || []).map((it: any) => {
+          const recvd = parseFloat(it.Credit) || 0;
+          const paid = parseFloat(it.Debit) || 0;
+          running = running + recvd - paid;
+          return {
+            RefModule: it.RefType || it.VoucherID || '',
+            RefID: it.RefID || it.VoucherID || '',
+            Head: it.CustomerName || it.Head || '',
+            Details: it.Description || it.Details || '',
+            Recvd: recvd,
+            Paid: paid,
+            Balance: running,
+          };
+        });
+        this.data = mapped;
       });
   }
 

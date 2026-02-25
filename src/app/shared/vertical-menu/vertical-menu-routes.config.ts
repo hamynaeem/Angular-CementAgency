@@ -246,7 +246,7 @@ export const ROUTES: RouteInfo[] = [
       },
       {
         id: 540,
-        path: '/reports/salesummay',
+        path: '/reports/salesummary',
         title: 'Sale of Products',
         icon: 'ft-info submenu-icon',
         class: '',
@@ -258,7 +258,7 @@ export const ROUTES: RouteInfo[] = [
       },
       {
         id: 550,
-        path: '/reports/purchasesummay',
+        path: '/reports/purchasesummary',
         title: 'Purchase of Products',
         icon: 'ft-info submenu-icon',
         class: '',

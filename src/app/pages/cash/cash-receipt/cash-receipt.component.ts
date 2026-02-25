@@ -148,7 +148,16 @@ export class CashReceiptComponent implements OnInit {
           this.router.navigateByUrl('/cash/cashreceipt/');
         } else {
           this.Voucher = new VoucherModel();
-          this.cmbCustomer.nativeElement.focus();
+          // Guard against missing ViewChild (nativeElement may be undefined
+          // if the template hasn't been rendered yet). Defer focus to next
+          // microtask to allow view update.
+          if (
+            this.cmbCustomer &&
+            this.cmbCustomer.nativeElement &&
+            typeof this.cmbCustomer.nativeElement.focus === 'function'
+          ) {
+            setTimeout(() => this.cmbCustomer.nativeElement.focus(), 0);
+          }
         }
       })
       .catch((err) => {

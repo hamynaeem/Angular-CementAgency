@@ -406,6 +406,29 @@ class Tasks extends REST_Controller
     {
         try {
             $data = $this->post();
+
+            // suppress DB debug to avoid HTML error pages on DB errors
+            $orig_db_debug = isset($this->db->db_debug) ? $this->db->db_debug : true;
+            $this->db->db_debug = false;
+
+            // Normalize Date coming from Angular datepicker {year,month,day}
+            if (isset($data['Date']) && is_array($data['Date'])) {
+                $d = $data['Date'];
+                if (isset($d['year'], $d['month'], $d['day'])) {
+                    $data['Date'] = sprintf('%04d-%02d-%02d', $d['year'], $d['month'], $d['day']);
+                }
+            }
+
+            // Ensure numeric fields are properly typed
+            if (isset($data['Debit'])) $data['Debit'] = floatval($data['Debit']);
+            if (isset($data['Credit'])) $data['Credit'] = floatval($data['Credit']);
+            if (isset($data['CustomerID'])) $data['CustomerID'] = intval($data['CustomerID']);
+
+            // If BusinessID passed as query param, prefer it
+            $bidParam = (int) $this->get('bid');
+            if ($bidParam > 0) {
+                $data['BusinessID'] = $bidParam;
+            }
             
             // Basic validation
             if (empty($data)) {
@@ -436,7 +459,21 @@ class Tasks extends REST_Controller
                 $this->db->update('vouchers', $vouch);
                 $voucherId = $id;
             } else {
-                $this->db->insert('vouchers', $vouch);
+                if (!$this->db->insert('vouchers', $vouch)) {
+                    $err = $this->db->error();
+                    log_message('error', 'vouchers insert failed: ' . json_encode($err));
+                    // also write to post_debug.log for easier local debugging
+                    @file_put_contents(APPPATH . 'logs/post_debug.log', "[" . date('c') . "] vouchers insert failed: " . json_encode($err) . "\nData: " . json_encode($vouch) . "\n", FILE_APPEND);
+                    $this->db->trans_rollback();
+                    // restore db debug
+                    $this->db->db_debug = $orig_db_debug;
+                    $this->response([
+                        'status' => false,
+                        'message' => isset($err['message']) ? $err['message'] : 'Failed to insert voucher',
+                        'code' => isset($err['code']) ? $err['code'] : 0,
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                    return;
+                }
                 $voucherId = $this->db->insert_id();
             }
 
@@ -456,22 +493,31 @@ class Tasks extends REST_Controller
             } catch (Exception $e) {
                 // Log but do not fail the API here — the DB trigger or later processing may handle it
                 log_message('error', 'sp_ManageCashbook call failed: ' . $e->getMessage());
+                @file_put_contents(APPPATH . 'logs/post_debug.log', "[" . date('c') . "] sp_ManageCashbook call failed: " . $e->getMessage() . "\n", FILE_APPEND);
             }
             
             if ($this->db->trans_status() === FALSE) {
                 $this->db->trans_rollback();
+                // restore db debug
+                $this->db->db_debug = $orig_db_debug;
                 $this->response([
                     'status' => false,
                     'message' => 'Failed to save voucher'
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
                 return;
             }
-            
+
             $this->db->trans_commit();
+            // restore db debug
+            $this->db->db_debug = $orig_db_debug;
             $this->response(['id' => $voucherId], REST_Controller::HTTP_OK);
             
         } catch (Exception $e) {
             $this->db->trans_rollback();
+            // restore db debug
+            if (isset($orig_db_debug)) $this->db->db_debug = $orig_db_debug;
+            log_message('error', 'vouchers_post exception: ' . $e->getMessage());
+            @file_put_contents(APPPATH . 'logs/post_debug.log', "[" . date('c') . "] vouchers_post exception: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString() . "\nData: " . json_encode(isset($data)?$data:[]) . "\n", FILE_APPEND);
             $this->response([
                 'status' => false,
                 'message' => 'Error: ' . $e->getMessage()

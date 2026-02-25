@@ -74,13 +74,20 @@ export class CashPaymentComponent implements OnInit {
   }
   SaveData() {
     let voucherid = '';
-    // Ensure PrevBalance is a valid number
-    if (typeof this.curCustomer.Balance !== 'number' || isNaN(this.curCustomer.Balance)) {
-      console.warn('curCustomer.Balance is not a valid number:', this.curCustomer.Balance);
-      this.Voucher.PrevBalance = 0;
-    } else {
-      this.Voucher.PrevBalance = this.curCustomer.Balance;
+    // Coerce PrevBalance to a valid number (handles string values returned from API)
+    let prevBalance = 0;
+    if (
+      this.curCustomer &&
+      this.curCustomer.Balance !== undefined &&
+      this.curCustomer.Balance !== null
+    ) {
+      prevBalance = Number(this.curCustomer.Balance);
+      if (isNaN(prevBalance)) {
+        console.warn('curCustomer.Balance is not a valid number:', this.curCustomer.Balance);
+        prevBalance = 0;
+      }
     }
+    this.Voucher.PrevBalance = prevBalance;
     
     // Set default values for required fields if missing
     if (!this.Voucher.RefID) this.Voucher.RefID = "0";
@@ -99,7 +106,13 @@ export class CashPaymentComponent implements OnInit {
     
     // Format date for PHP backend (Y-m-d format)
     if (this.Voucher.Date) {
-      const dateObj = new Date(this.Voucher.Date);
+      let dateObj: Date;
+      if (typeof this.Voucher.Date === 'object') {
+        const d: any = this.Voucher.Date;
+        dateObj = new Date(d.year, d.month - 1, d.day);
+      } else {
+        dateObj = new Date(this.Voucher.Date);
+      }
       if (isNaN(dateObj.getTime())) {
         this.alert.Error('Invalid date format', 'Error');
         return;
@@ -136,7 +149,7 @@ export class CashPaymentComponent implements OnInit {
       const url = 'vouchers' + voucherid;
       this.http
         .postTask(url, this.Voucher)
-      .then((r) => {
+        .then((r) => {
         this.alert.Sucess('Payment Saved', 'Save', 1);
         if (this.EditID != '') {
           this.router.navigateByUrl('/cash/cashpayment/');
@@ -145,7 +158,25 @@ export class CashPaymentComponent implements OnInit {
           // Set today's date for new record
           const today = new Date();
           this.Voucher.Date = today.toISOString().slice(0, 10);
-          this.cmbCustomer.focusIn();
+          // Safely focus the customer select/component if available. Different
+          // select components expose different focus APIs (focus, focusIn,
+          // or nativeElement.focus()). Try them defensively.
+          if (this.cmbCustomer) {
+            try {
+              if (typeof this.cmbCustomer.focus === 'function') {
+                this.cmbCustomer.focus();
+              } else if (typeof this.cmbCustomer.focusIn === 'function') {
+                this.cmbCustomer.focusIn();
+              } else if (
+                this.cmbCustomer.nativeElement &&
+                typeof this.cmbCustomer.nativeElement.focus === 'function'
+              ) {
+                setTimeout(() => this.cmbCustomer.nativeElement.focus(), 0);
+              }
+            } catch (e) {
+              console.warn('Could not set focus on cmbCustomer', e);
+            }
+          }
         }
       })
       .catch((err) => {
@@ -166,7 +197,9 @@ export class CashPaymentComponent implements OnInit {
     }
   }
   Round(amnt: number) {
-    return Math.round(amnt);
+    const n = Number(amnt);
+    if (isNaN(n)) return 0;
+    return Math.round(n);
   }
   NavigatorClicked(e: any) {
     let billNo = 240000001;

@@ -49,7 +49,6 @@
                     ngbDatepicker
                     #dtFrom="ngbDatepicker"
                     required
-                    disabled
                   />
                   <div class="input-group-addon">
                     <button
@@ -71,6 +70,7 @@
               </label>
               <div class="col-md-8">
                 <ng-select
+                  #cmbCustomer
                   name="ng2select"
                   class="custom"
                   [items]="Customers"

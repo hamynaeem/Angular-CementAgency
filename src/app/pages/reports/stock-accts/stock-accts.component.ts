@@ -12,13 +12,13 @@ import { PrintDataService } from '../../../services/print.data.services';
   styleUrls: ['./stock-accts.component.scss'],
 })
 export class StockAcctsComponent implements OnInit {
-  @ViewChild('cmbProduct') cmbProduct;
-  public data: object[];
+  @ViewChild('cmbProduct') cmbProduct: any;
+  public data: object[] = [];
 
   public Filter = {
     FromDate: GetDateJSON(),
     ToDate: GetDateJSON(),
-    StoreID: '',
+    StoreID: 0,
     ItemID: '',
     What: '2',
   };
@@ -104,7 +104,9 @@ export class StockAcctsComponent implements OnInit {
       JSON2Date(this.Filter.ToDate) +
       "'";
 
-    filter += ' and StoreID = ' + this.Filter.StoreID;
+    // ensure StoreID is numeric (use 0 for all stores when not set)
+    const storeId = this.Filter.StoreID == null ? 0 : this.Filter.StoreID;
+    filter += ' and StoreID = ' + storeId;
 
     if (!(this.Filter.ItemID === '' || this.Filter.ItemID === null)) {
       if (this.Filter.What == '1') {
@@ -113,8 +115,9 @@ export class StockAcctsComponent implements OnInit {
         this.LoadUnitsData(filter);
       }
     }
+    console.log('stock-accts filter:', filter, 'ItemID:', this.Filter.ItemID);
   }
-  LoadUnitsData(filter) {
+  LoadUnitsData(filter: string) {
     filter += " and UnitName = '" + this.Filter.ItemID + "'";
 
     this.http
@@ -127,9 +130,10 @@ export class StockAcctsComponent implements OnInit {
       .then((r: any) => {
         this.setting.Columns = this.colProducts;
         this.data = r;
+        console.log('qrystockaccts units response:', r);
       });
   }
-  LoadProductsData(filter) {
+  LoadProductsData(filter: string) {
     // tslint:disable-next-line:quotemark
 
     filter += ' and ProductID = ' + this.Filter.ItemID;
@@ -144,9 +148,10 @@ export class StockAcctsComponent implements OnInit {
       .then((r: any) => {
         this.setting.Columns = this.colProducts;
         this.data = r;
+        console.log('qrystockaccts products response:', r);
       });
   }
-  Clicked(e) {}
+  Clicked(e: any) {}
   PrintReport() {
     this.ps.PrintData.HTMLData = document.getElementById('print-section');
     this.ps.PrintData.Title = 'Product Accounts';
@@ -159,8 +164,8 @@ export class StockAcctsComponent implements OnInit {
       this.cmbProduct.text;
     this.router.navigateByUrl('/print/print-html');
   }
-  CustomerSelected(e) {}
-  formatDate(d) {
+  CustomerSelected(e: any) {}
+  formatDate(d: any) {
     return JSON2Date(d);
   }
 }
