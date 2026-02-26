@@ -1,5 +1,6 @@
 import { formatNumber } from '../../../factories/utilities';
 export const VoucherSetting = {
+  Checkbox: true,
   Columns: [
     {
       label: "Voucher No",

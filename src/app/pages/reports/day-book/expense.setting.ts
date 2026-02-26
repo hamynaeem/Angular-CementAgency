@@ -1,5 +1,6 @@
 import { formatNumber } from '../../../factories/utilities';
 export const ExpenseSetting = {
+  Checkbox: true,
   Columns: [
     {
       label: 'Expense No',

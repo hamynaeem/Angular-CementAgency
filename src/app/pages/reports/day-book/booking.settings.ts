@@ -1,4 +1,5 @@
 export const BookingSetting = {
+  Checkbox: true,
   Columns: [
     {
       label: "Booking No",

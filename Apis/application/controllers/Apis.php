@@ -176,6 +176,7 @@ class Apis extends REST_Controller
                     if ($offset > 0) {
                         $this->db->offset($offset, $offset);
                     }
+                    // echo 'query`: ' . $this->db->get_compiled_select();
                     $this->getAll($this->db->get_compiled_select());
                 }
             } else {

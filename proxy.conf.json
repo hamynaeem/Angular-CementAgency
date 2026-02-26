@@ -1,11 +1,11 @@
 {
   "/apis/*": {
-    "target": "http://localhost/cement",
+    "target": "http://localhost:8000/",
     "secure": false,
-    "changeOrigin": true,
     "logLevel": "debug",
     "pathRewrite": {
       "^/apis": ""
-    }
+    },
+    "changeOrigin": true
   }
 }

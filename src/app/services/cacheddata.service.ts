@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
-import { shareReplay, switchMap } from 'rxjs/operators';
+import { BehaviorSubject, from, of } from 'rxjs';
+import { shareReplay, switchMap, catchError } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
 import { HttpBase } from './httpbase.service';
@@ -98,9 +98,11 @@ constructor(private http: HttpClient, private http2: HttpBase) {
     shareReplay(1)
   );
 
-  this.apiAccounts$ = this.http.get<any[]>(this.api + 'qrycustomers?flds=CustomerID,CustomerName,AcctType,Balance&orderby=CustomerName');
+  // Use HttpBase.getData so URLs and bid handling are consistent with the rest of the app
+  this.apiAccounts$ = () => from(this.http2.getData('qrycustomers?flds=CustomerID,CustomerName,AcctType,Balance&orderby=CustomerName'));
   this.Accounts$ = this._accounts$.pipe(
-    switchMap(() => this.apiAccounts$),
+    switchMap(() => this.apiAccounts$()),
+    catchError(() => of([])),
     shareReplay(1)
   );
 }

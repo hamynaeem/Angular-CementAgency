@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import swal from 'sweetalert';
 import { getDMYDate } from '../../../factories/utilities';
 import { HttpBase } from '../../../services/httpbase.service';
 import { Router } from '@angular/router';
@@ -45,7 +46,14 @@ export class BalanceSheetComponent implements OnInit {
         },
       },
     ],
-    Actions: [],
+    Actions: [
+      {
+        action: 'delete',
+        title: 'Delete',
+        icon: 'trash',
+        class: 'danger',
+      },
+    ],
     Data: [] as BalanceRow[],
   };
   isLoading = false;
@@ -87,6 +95,22 @@ export class BalanceSheetComponent implements OnInit {
     this.ps.PrintData.SubTitle = "As On  :" + this.dteDate;
 
     this.router.navigateByUrl("/print/print-html");
+  }
+
+  Clicked(e: any) {
+    if (!e) return;
+    if (e.action === 'delete') {
+      swal({
+        text: 'Are you sure you want to delete this record?',
+        icon: 'warning',
+        buttons: { cancel: true, confirm: true },
+      }).then((ok) => {
+        if (ok) {
+          // TODO: call delete API here. For now just log the item.
+          console.log('Delete confirmed for row:', e.data || e);
+        }
+      });
+    }
   }
 
 }

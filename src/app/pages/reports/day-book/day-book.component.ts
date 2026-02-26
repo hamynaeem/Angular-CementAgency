@@ -51,6 +51,61 @@ export class DayBookComponent implements OnInit {
     this.FilterData();
   }
 
+  async PostSelected() {
+    const rows: any[] = this.data || [];
+    // detect selected property by common names
+    const isSelected = (r: any) => {
+      return !!(
+        r && (r.__selected || r.selected || r.Checked || r.checked || r.IsSelected)
+      );
+    };
+
+    const selected = rows.filter(isSelected);
+    if (!selected || selected.length === 0) {
+      swal('No selection', 'Please select rows to post', 'warning');
+      return;
+    }
+
+    const toPost = selected.filter((r) => r.IsPosted === '0' || r.IsPosted === 0 || r.Posted === 'Un Posted');
+    if (!toPost || toPost.length === 0) {
+      swal('Nothing to post', 'Selected rows are already posted', 'info');
+      return;
+    }
+
+    const ok = await swal({
+      text: `Post ${toPost.length} selected record(s)?`,
+      icon: 'warning',
+      buttons: { cancel: true, confirm: true },
+    });
+    if (!ok) return;
+
+    try {
+      for (const r of toPost) {
+        let url = '';
+        if (this.nWhat === '1') {
+          url = 'postexpense/' + r.ExpendID;
+        } else if (this.nWhat === '2') {
+          url = 'postbooking/' + r.BookingID;
+        } else if (this.nWhat === '3') {
+          url = 'postvouchers/' + r.VoucherID;
+        } else if (this.nWhat === '4') {
+          // no explicit transport post in existing code; try generic post endpoint if available
+          url = 'posttransport/' + (r.ID || r.TransportID || '');
+        }
+        if (!url) continue;
+        // sequentially post each
+        // eslint-disable-next-line no-await-in-loop
+        await this.http.postTask(url, {});
+      }
+      swal('Posted', 'Selected records have been posted', 'success');
+      this.FilterData();
+    } catch (err) {
+      console.error('PostSelected error', err);
+      swal('Error', 'Error while posting selected records', 'error');
+      this.FilterData();
+    }
+  }
+
   FilterData() {
     let table = '';
     const fromDate = getYMDDate(new Date(JSON2Date(this.Filter.FromDate)));

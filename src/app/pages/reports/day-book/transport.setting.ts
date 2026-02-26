@@ -1,6 +1,7 @@
 import { formatNumber } from '../../../factories/utilities';
 
 export const TransportSetting = {
+  Checkbox: true,
   Columns: [
     { label: 'Date', fldName: 'Date' },
     { label: 'Vehicle', fldName: 'TransportName' },
